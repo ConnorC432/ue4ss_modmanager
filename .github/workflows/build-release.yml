@@ -1,4 +1,4 @@
-name: Build and Release (Windows + Linux)
+name: Build and Release
 
 on:
   push:
@@ -46,12 +46,6 @@ jobs:
             --name "${{ matrix.asset_name }}" \
             --add-data "assets${{ matrix.add_data_sep }}assets" \
             src/main.py
-
-      - name: Rename Windows binary correctly
-        if: matrix.os == 'windows-latest'
-        shell: pwsh
-        run: |
-          Rename-Item dist\UE4SS-ModManager-windows.exe.exe UE4SS-ModManager-windows.exe
 
       - name: Package artifact (Linux)
         if: matrix.os == 'ubuntu-latest'
