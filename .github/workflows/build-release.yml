@@ -99,13 +99,13 @@ jobs:
         shell: bash
         run: |
           TAG="${GITHUB_REF_NAME}"
-          
-          awk -v tag="## " "$TAG" '
+      
+          awk -v tag="$TAG" '
             $0 ~ "^## " tag {flag=1; next}
             /^## / && flag {exit}
             flag {print}
           ' CHANGELOG.md > release_body.txt
-          
+      
           echo "body<<EOF" >> $GITHUB_OUTPUT
           cat release_body.txt >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
