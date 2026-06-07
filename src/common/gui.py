@@ -213,7 +213,11 @@ class UE4SSModManagerGUI(ctk.CTk):
 		self.spacer.pack(side="left", fill="x", expand=True)
 
 		self.save_button = ctk.CTkButton(
-			self.save_options_frame, text="Save Changes", command=self.save_changes, width=120, state="disabled"
+			self.save_options_frame,
+			text="Save Changes",
+			command=self.save_changes,
+			width=120,
+			state="disabled",
 		)
 		self.save_button.pack(side="right", padx=10, pady=8)
 

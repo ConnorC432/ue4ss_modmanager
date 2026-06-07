@@ -124,7 +124,7 @@ def main() -> None:
 		mods_folder = find_mods_folder()
 		if not mods_folder:
 			show_startup_error(
-				"Could not find the UE4SS Mods folder.\nPlease place this executable in the UE4SS/Mods folder."
+				"Could not find the UE4SS Mods folder.\nPlease place this executable in the UE4SS/Mods folder.",
 			)
 			return
 
