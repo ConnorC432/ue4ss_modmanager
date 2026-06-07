@@ -7,36 +7,32 @@ from src.common.gui import start_gui
 from src.common.mod_manager import UE4SSModManager
 
 
-def find_mods_folder() -> Path:
+def find_mods_folder() -> Path | None:
 	"""
 	Find the mods folder path.
 
 	Returns:
-		The path to the mods folder.
+		The path to the mods folder or None if not found.
 	"""
 	base_path = Path(sys.executable).parent if getattr(sys, "frozen", False) else Path(__file__).parent.parent
 
-	if base_path.name.upper() == "MODS" and base_path.parent.name.upper() == "UE4SS":
-		return base_path
-
-	if base_path.name.upper() == "UE4SS":
-		mods_path = base_path / "Mods"
-		if mods_path.exists() and mods_path.is_dir():
-			return mods_path
-
 	current = base_path
-	for _ in range(4):
+	for _ in range(5):  # Check current and 4 parents
+		# Check if current is the Mods folder
 		if current.name.upper() == "MODS" and current.parent.name.upper() == "UE4SS":
 			return current
 
+		# Check if current/Mods is the Mods folder
 		mods_path = current / "Mods"
-		if mods_path.exists() and mods_path.is_dir() and (mods_path.parent.name.upper() == "UE4SS"):
+		if mods_path.is_dir() and mods_path.parent.name.upper() == "UE4SS":
 			return mods_path
 
-		ue4ss_path = current / "UE4SS" / "Mods"
-		if ue4ss_path.exists() and ue4ss_path.is_dir():
-			return ue4ss_path
+		# Check if current/UE4SS/Mods is the Mods folder
+		ue4ss_mods_path = current / "UE4SS" / "Mods"
+		if ue4ss_mods_path.is_dir():
+			return ue4ss_mods_path
 
+		if current.parent == current:  # Root reached
 			break
 		current = current.parent
 
