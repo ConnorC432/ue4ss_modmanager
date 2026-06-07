@@ -21,6 +21,9 @@ jobs:
           - os: windows-latest
             asset_name: UE4SS-ModManager-windows.exe
             add_data_sep: ";"
+          - os: macos-latest
+            asset_name: UE4SS-ModManager-macos
+            add_data_sep: ":"
 
     steps:
       - name: Checkout repository
@@ -47,17 +50,20 @@ jobs:
             --add-data "assets${{ matrix.add_data_sep }}assets" \
             src/main.py
 
-      - name: Package artifact (Linux)
-        if: matrix.os == 'ubuntu-latest'
+      - name: Package artifact
+        shell: bash
         run: |
           cd dist
-          zip -r UE4SS-ModManager-linux.zip UE4SS-ModManager-linux
 
-      - name: Package artifact (Windows)
-        if: matrix.os == 'windows-latest'
-        run: |
-          cd dist
-          powershell Compress-Archive UE4SS-ModManager-windows.exe UE4SS-ModManager-windows.zip
+          if [ "$RUNNER_OS" == "Linux" ]; then
+            zip -r "${{ matrix.asset_name }}.zip" "${{ matrix.asset_name }}"
+
+          elif [ "$RUNNER_OS" == "macOS" ]; then
+            zip -r "${{ matrix.asset_name }}.zip" "${{ matrix.asset_name }}"
+
+          else
+            powershell Compress-Archive "${{ matrix.asset_name }}" "${{ matrix.asset_name }}.zip"
+          fi
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
