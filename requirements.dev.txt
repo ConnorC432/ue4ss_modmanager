@@ -1,3 +1,5 @@
 -r requirements.txt
 ruff
 ty
+pytest
+pytest-cov
