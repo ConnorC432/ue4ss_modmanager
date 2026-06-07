@@ -173,3 +173,6 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# UE4SS/Mods
+UE4SS/
