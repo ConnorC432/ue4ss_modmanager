@@ -44,7 +44,14 @@ class UE4SSModManager:
 
 		if (self.path / "mods.txt").exists():
 			with Path.open(self.path / "mods.txt", encoding="utf-8") as f:
-				output += [line.strip() for line in f.readlines() if line.strip().endswith("1")]
+				for line in f.readlines():
+					line = line.strip()
+					if line.endswith("1"):
+						# Handle both "ModName : 1" and "ModName" (if it ends with 1)
+						if " : " in line:
+							output.append(line.split(" : ")[0].strip())
+						else:
+							output.append(line[:-1].strip())
 
 		if (self.path / "mods.json").exists():
 			with Path.open(self.path / "mods.json", encoding="utf-8-sig") as f:
