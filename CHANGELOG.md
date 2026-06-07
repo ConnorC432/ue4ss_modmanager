@@ -1,9 +1,18 @@
-## 0.2.0
+## v0.2.3
+- Fixed logo not displaying on Linux builds
+
+## v0.2.2
+- Fixed mod handling so that mod names can end with a 1
+
+## v0.2.1
+- Added builds for Linux and macOS
+
+## v0.2.0
 - Added search filter
 - Added "reset" and "refresh" buttons
 - Added warnings when writing to mods.txt and mods.json
 - Added warning when trying to manage native UE4SS mods
 - Misc bug fixes
 
-## 0.1.0
+## v0.1.0
 - Initial version.
