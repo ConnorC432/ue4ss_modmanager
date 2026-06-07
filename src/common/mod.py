@@ -28,12 +28,12 @@ class UE4SSMod:
 			override_enabled (optional): If True, the mod will be considered enabled even if
 				there is no enabled.txt file. Defaults to False.
 
+		Returns:
+			An instance of the UE4SSMod class with the mod's name, enabled status, and list of scripts.
+
 		Raises:
 			InvalidModException: If the mod directory does not contain a main.lua file or if the directory
 				is not a directory.
-
-		Returns:
-			An instance of the UE4SSMod class with the mod's name, enabled status, and list of scripts.
 		"""
 		name = path.stem
 
