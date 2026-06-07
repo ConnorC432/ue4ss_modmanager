@@ -89,6 +89,9 @@ jobs:
       contents: write
 
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
@@ -98,10 +101,15 @@ jobs:
         id: changelog
         shell: bash
         run: |
-          BODY=$(awk '
-            /^## / {if (seen++) exit; next}
-            seen {print}
-          ' CHANGELOG.md | sed '/^[[:space:]]*$/d')
+          TAG="${GITHUB_REF_NAME}"
+          
+          BODY=$(awk -v tag="$TAG" '
+            $0 ~ "^##[[:space:]]*" tag "$" {flag=1; next}
+            /^##[[:space:]]/ && flag {exit}
+            flag {print}
+          ' CHANGELOG.md)
+          
+          BODY=$(echo "$BODY" | sed ':a; /^\s*$/{$d;N;ba}')
       
           echo "body<<EOF" >> $GITHUB_OUTPUT
           echo "$BODY" >> $GITHUB_OUTPUT
