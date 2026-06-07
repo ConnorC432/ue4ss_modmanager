@@ -1,8 +1,6 @@
-# UE4SS Mod Manager
+# UE4SS Mod Manager - Medieval Dynasty
 
 A simple GUI application for managing [UE4SS](https://github.com/UE4SS-RE/RE-UE4SS) mods in Unreal Engine games.
-
-![UE4SS Logo](assets/img/ue.svg)
 
 ## Features
 
@@ -15,25 +13,16 @@ A simple GUI application for managing [UE4SS](https://github.com/UE4SS-RE/RE-UE4
 - Modern dark mode UI
 - Simple, intuitive interface
 
+## Pre-Installation
+
+1. Download the experimental-latest release of UE4SS from [here](https://github.com/UE4SS-RE/RE-UE4SS/releases)
+2. Extract the contents of the zip file into the `Medieval_Dynasty/Binaries/Win64` folder
+
 ## Installation
 
-### Option 1: Pre-built executable
-
-1. Download the latest release from the [Releases page](https://github.com/gmtkacz/ue4ss_modmanager/releases)
-2. Place the executable in your game's `UE4SS/Mods` folder
+1. Download the latest release from the [Releases page](https://github.com/ConnorC432/ue4ss_modmanager/releases)
+2. Place the executable in your game's `Medieval_Dynasty/Binaries/Win64/ue4ss/Mods` folder
 3. Run the executable
-
-### Option 2: Run from source
-
-1. Clone this repository
-2. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-3. Run the application:
-   ```bash
-   python src/main.py
-   ```
 
 ## Usage
 
@@ -46,51 +35,3 @@ A simple GUI application for managing [UE4SS](https://github.com/UE4SS-RE/RE-UE4
    - "Save mods.json" - Updates the mods.json file used by UE4SS
    - "Save mods.txt" - Updates the mods.txt file used by UE4SS
 6. Click "Save Changes" to apply your configuration
-
-## How It Works
-
-- The manager looks for mod folders in the UE4SS/Mods directory
-- Each mod must have a scripts folder with at least one main.lua file
-- Enabling a mod creates an enabled.txt file in its folder and adds entries to mods.json and mods.txt
-- Disabling a mod removes these entries
-
-## Requirements
-
-- Windows 10/11
-- UE4SS installed in your game directory
-
-## Development
-
-### Setup Development Environment
-
-1. Clone the repository
-2. Install development dependencies:
-   ```bash
-   pip install -r requirements.dev.txt
-   ```
-3. Install pre-commit hooks:
-   ```bash
-   pre-commit install
-   ```
-
-### Building from Source
-
-See the [Building Guide](BUILDING.md) for instructions on compiling to an executable.
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-1. Fork the project
-2. Create your feature branch: `git create -c feature/amazing-feature`
-3. Commit your changes: `git commit -m 'Add some amazing feature'`
-4. Push to the branch: `git push origin feature/amazing-feature`
-5. Open a Pull Request
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Security
-
-For security issues, please see [SECURITY.md](SECURITY.md).
