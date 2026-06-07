@@ -493,26 +493,26 @@ class UE4SSModManagerGUI(ctk.CTk):
 		"""Show an error popup with the given title and message."""
 		error_window = ctk.CTkToplevel(self)
 		error_window.title(title)
-		error_window.geometry("400x200")
+		error_window.geometry("450x250")
 		error_window.transient(self)
 		error_window.grab_set()
 		error_window.attributes("-topmost", True)
-		error_window.after(100, lambda: error_window.attributes("-topmost", False))
+
+		frame = ctk.CTkFrame(error_window)
+		frame.pack(fill="both", expand=True, padx=20, pady=20)
+
+		error_label = ctk.CTkLabel(frame, text=message, wraplength=400, justify="left")
+		error_label.pack(padx=10, pady=(10, 20), fill="both", expand=True)
+
+		ok_button = ctk.CTkButton(frame, text="OK", command=error_window.destroy, width=100)
+		ok_button.pack(pady=(0, 10))
+
 		error_window.update_idletasks()
 		width = error_window.winfo_width()
 		height = error_window.winfo_height()
 		x = (error_window.winfo_screenwidth() // 2) - (width // 2)
 		y = (error_window.winfo_screenheight() // 2) - (height // 2)
 		error_window.geometry(f"{width}x{height}+{x}+{y}")
-
-		frame = ctk.CTkFrame(error_window)
-		frame.pack(fill="both", expand=True, padx=20, pady=20)
-
-		error_label = ctk.CTkLabel(frame, text=message, wraplength=360, justify="left")
-		error_label.pack(padx=10, pady=(10, 20))
-
-		ok_button = ctk.CTkButton(frame, text="OK", command=error_window.destroy, width=100)
-		ok_button.pack(pady=(0, 10))
 
 
 def start_gui(mod_manager: UE4SSModManager, logo_path: Path | None = None, icon_path: Path | None = None) -> None:
