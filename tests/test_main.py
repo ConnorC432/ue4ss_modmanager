@@ -27,8 +27,25 @@ def test_find_assets(tmp_path):
 	icon = assets_dir / "ue.ico"
 	icon.touch()
 
-	found_logo, found_icon = find_assets(tmp_path)
+	found_logo, found_dark_logo, found_icon = find_assets(tmp_path)
 	assert found_logo == logo
+	assert found_dark_logo is None
+	assert found_icon == icon
+
+
+def test_find_assets_with_dark_logo(tmp_path):
+	assets_dir = tmp_path / "assets" / "img"
+	assets_dir.mkdir(parents=True)
+	logo = assets_dir / "logo.png"
+	logo.touch()
+	dark_logo = assets_dir / "logo_white.png"
+	dark_logo.touch()
+	icon = assets_dir / "ue.png"
+	icon.touch()
+
+	found_logo, found_dark_logo, found_icon = find_assets(tmp_path)
+	assert found_logo == logo
+	assert found_dark_logo == dark_logo
 	assert found_icon == icon
 
 
@@ -38,8 +55,9 @@ def test_find_assets_partial(tmp_path):
 	logo = assets_dir / "ue.svg"
 	logo.touch()
 
-	found_logo, found_icon = find_assets(tmp_path)
+	found_logo, found_dark_logo, found_icon = find_assets(tmp_path)
 	assert found_logo == logo
+	assert found_dark_logo is None
 	assert found_icon is None
 
 
@@ -52,8 +70,9 @@ def test_find_assets_other_locations(tmp_path):
 	icon = img_dir / "ue.ico"
 	icon.touch()
 
-	found_logo, found_icon = find_assets(tmp_path)
+	found_logo, found_dark_logo, found_icon = find_assets(tmp_path)
 	assert found_logo == logo
+	assert found_dark_logo is None
 	assert found_icon == icon
 
 
@@ -94,7 +113,7 @@ def test_find_assets_frozen(tmp_path, monkeypatch):
 	logo = assets_dir / "ue.svg"
 	logo.touch()
 
-	found_logo, _ = find_assets()
+	found_logo, _, _ = find_assets()
 	assert found_logo == logo
 
 
@@ -179,11 +198,11 @@ def test_main_startup_full(monkeypatch, tmp_path):
 	(mods_dir / "Mod1" / "scripts" / "main.lua").touch()
 
 	monkeypatch.setattr("src.main.find_mods_folder", lambda: mods_dir)
-	monkeypatch.setattr("src.main.find_assets", lambda: (None, None))
+	monkeypatch.setattr("src.main.find_assets", lambda: (None, None, None))
 
 	# Mock start_gui to avoid GUI
 	gui_calls = []
-	monkeypatch.setattr("src.main.start_gui", lambda manager, logo, icon: gui_calls.append(manager))
+	monkeypatch.setattr("src.main.start_gui", lambda manager, logo, icon, dark_logo: gui_calls.append(manager))
 
 	# Mock ctk
 	monkeypatch.setattr("customtkinter.set_appearance_mode", lambda mode: None)
@@ -203,7 +222,7 @@ def test_main_invalid_mod_folder_exception(monkeypatch, tmp_path):
 	mods_dir.mkdir(parents=True)
 
 	monkeypatch.setattr("src.main.find_mods_folder", lambda: mods_dir)
-	monkeypatch.setattr("src.main.find_assets", lambda: (None, None))
+	monkeypatch.setattr("src.main.find_assets", lambda: (None, None, None))
 
 	# Mock UE4SSModManager to raise InvalidModFolderException
 	from src.common.exceptions import InvalidModFolderException

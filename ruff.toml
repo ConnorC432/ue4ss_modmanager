@@ -48,7 +48,8 @@ ignore = [
     "PLR6301", # Method could be a function/static
     "E402", # Module level import not at top (needed for mocks in tests)
     "S108", # Insecure temporary file
-    "E721", "BLE001", "D404", "CPY001", "EM102", "TRY003", "PLR0904", "D205", "TID252", "D200", "S603", "S404", "S602", "TRY301", "C417", "FA100", "EM101", "FURB113", "E741", "UP007", "UP045"
+    "E721", "BLE001", "D404", "CPY001", "EM102", "TRY003", "PLR0904", "D205", "TID252", "D200", "S603", "S404", "S602", "TRY301", "C417", "FA100", "EM101", "FURB113", "E741", "UP007", "UP045",
+    "PLR0912"
 ]
 extend-select = ["DOC"]
 

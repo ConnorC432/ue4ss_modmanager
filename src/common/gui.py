@@ -1,8 +1,9 @@
+import sys
 from pathlib import Path
 
 import customtkinter as ctk
 from loguru import logger
-from PIL import Image
+from PIL import Image, ImageTk
 
 from src.common.mod import UE4SSMod
 from src.common.mod_manager import UE4SSModManager
@@ -16,6 +17,7 @@ class UE4SSModManagerGUI(ctk.CTk):
 		mod_manager: UE4SSModManager,
 		logo_path: Path | None = None,
 		icon_path: Path | None = None,
+		dark_logo_path: Path | None = None,
 	) -> None:
 		"""Initialize the UE4SSModManagerGUI."""
 		super().__init__()
@@ -31,7 +33,7 @@ class UE4SSModManagerGUI(ctk.CTk):
 		self.main_frame = ctk.CTkFrame(self)
 		self.main_frame.pack(fill="both", expand=True, padx=15, pady=15)
 
-		self._create_header(logo_path)
+		self._create_header(logo_path, dark_logo_path)
 		self._create_search_filter()
 		self._create_controls()
 		self._create_mod_list()
@@ -58,7 +60,11 @@ class UE4SSModManagerGUI(ctk.CTk):
 
 		if icon_path and icon_path.exists():
 			try:
-				self.iconbitmap(icon_path)
+				if icon_path.suffix.lower() == ".ico" and sys.platform.startswith("win"):
+					self.iconbitmap(icon_path)
+				else:
+					self.icon_img = ImageTk.PhotoImage(Image.open(icon_path))
+					self.wm_iconphoto(True, self.icon_img)
 				logger.debug(f"Set window icon: {icon_path}")
 			except Exception as e:
 				logger.error(f"Failed to set window icon: {e}")
@@ -69,15 +75,39 @@ class UE4SSModManagerGUI(ctk.CTk):
 		ctk.set_appearance_mode("dark")
 		ctk.set_default_color_theme("blue")
 
-	def _create_header(self, logo_path: Path | None = None) -> None:
+	def _create_header(self, logo_path: Path | None = None, dark_logo_path: Path | None = None) -> None:
 		"""Create the header with logo or title."""
 		if logo_path and logo_path.exists():
 			try:
+				# Use ctk.CTkImage for high DPI support
 				pil_image = Image.open(logo_path)
-				logo_image = ctk.CTkImage(light_image=pil_image, dark_image=pil_image, size=(180, 54))
-				self.logo_label = ctk.CTkLabel(self.main_frame, image=logo_image, text="")
+				original_width, original_height = pil_image.size
+				aspect_ratio = original_width / original_height
+
+				# Target height is 54, calculate width based on aspect ratio
+				target_height = 54
+				target_width = int(target_height * aspect_ratio)
+
+				# Limit width if it becomes too large
+				if target_width > 300:
+					target_width = 300
+					target_height = int(target_width / aspect_ratio)
+
+				dark_pil_image = pil_image
+				if dark_logo_path and dark_logo_path.exists():
+					try:
+						dark_pil_image = Image.open(dark_logo_path)
+					except Exception as e:
+						logger.warning(f"Failed to load dark logo image: {e}")
+
+				self.logo_image = ctk.CTkImage(
+					light_image=pil_image,
+					dark_image=dark_pil_image,
+					size=(target_width, target_height),
+				)
+				self.logo_label = ctk.CTkLabel(self.main_frame, image=self.logo_image, text="")
 				self.logo_label.pack(pady=(0, 15))
-				logger.debug(f"Set logo image: {logo_path}")
+				logger.debug(f"Set logo image: {logo_path} (size: {target_width}x{target_height})")
 			except Exception as e:
 				logger.error(f"Failed to load logo image: {e}")
 				self._create_title_label()
@@ -519,7 +549,12 @@ class UE4SSModManagerGUI(ctk.CTk):
 		error_window.geometry(f"{width}x{height}+{x}+{y}")
 
 
-def start_gui(mod_manager: UE4SSModManager, logo_path: Path | None = None, icon_path: Path | None = None) -> None:
+def start_gui(
+	mod_manager: UE4SSModManager,
+	logo_path: Path | None = None,
+	icon_path: Path | None = None,
+	dark_logo_path: Path | None = None,
+) -> None:
 	"""
 	Start the GUI with the given mod manager.
 
@@ -527,6 +562,7 @@ def start_gui(mod_manager: UE4SSModManager, logo_path: Path | None = None, icon_
 		mod_manager: An instance of UE4SSModManager
 		logo_path: Path to the logo image file
 		icon_path: Path to the icon file (.ico)
+		dark_logo_path: Path to the dark mode logo image file
 	"""
-	app = UE4SSModManagerGUI(mod_manager, logo_path, icon_path)
+	app = UE4SSModManagerGUI(mod_manager, logo_path, icon_path, dark_logo_path)
 	app.mainloop()

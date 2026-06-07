@@ -45,7 +45,7 @@ def find_mods_folder(base_path: Path | None = None) -> Path | None:
 	return None
 
 
-def find_assets(base_path: Path | None = None) -> tuple[Path, Path]:
+def find_assets(base_path: Path | None = None) -> tuple[Path | None, Path | None, Path | None]:
 	"""
 	Find the paths to the logo and icon assets.
 
@@ -53,7 +53,7 @@ def find_assets(base_path: Path | None = None) -> tuple[Path, Path]:
 		base_path: The base path to start searching from. If None, it uses the application root.
 
 	Returns:
-		A tuple containing the paths to the logo and icon assets.
+		A tuple containing the paths to the logo, dark logo, and icon assets.
 	"""
 	if base_path is None:
 		base_path = Path(sys.executable).parent if getattr(sys, "frozen", False) else Path(__file__).parent.parent
@@ -66,19 +66,37 @@ def find_assets(base_path: Path | None = None) -> tuple[Path, Path]:
 	]
 
 	logo_path = None
+	dark_logo_path = None
 	icon_path = None
 
 	for location in possible_locations:
-		if (location / "ue.svg").exists():
-			logo_path = location / "ue.svg"
+		if not logo_path:
+			# Prefer PNG for better cross-platform compatibility
+			for ext in [".png", ".svg"]:
+				if (location / f"logo{ext}").exists():
+					logo_path = location / f"logo{ext}"
+					break
+				if (location / f"ue{ext}").exists():
+					logo_path = location / f"ue{ext}"
+					break
 
-		if (location / "ue.ico").exists():
-			icon_path = location / "ue.ico"
+		if not dark_logo_path:
+			for ext in [".png", ".svg"]:
+				if (location / f"logo_white{ext}").exists():
+					dark_logo_path = location / f"logo_white{ext}"
+					break
 
-		if logo_path and icon_path:
+		if not icon_path:
+			# On Linux, .png works better for window icons than .ico
+			for ext in [".png", ".ico"]:
+				if (location / f"ue{ext}").exists():
+					icon_path = location / f"ue{ext}"
+					break
+
+		if logo_path and dark_logo_path and icon_path:
 			break
 
-	return logo_path, icon_path
+	return logo_path, dark_logo_path, icon_path
 
 
 def main() -> None:
@@ -128,7 +146,7 @@ def main() -> None:
 			)
 			return
 
-		logo_path, icon_path = find_assets()
+		logo_path, dark_logo_path, icon_path = find_assets()
 
 		try:
 			mod_manager = UE4SSModManager(mods_folder)
@@ -136,7 +154,7 @@ def main() -> None:
 			show_startup_error(str(e))
 			return
 
-		start_gui(mod_manager, logo_path, icon_path)
+		start_gui(mod_manager, logo_path, icon_path, dark_logo_path)
 
 	except Exception as e:
 		logger.exception("An unexpected error occurred")
