@@ -1,7 +1,7 @@
+import os
+import shutil
 from json import dumps, load
 from pathlib import Path
-import shutil
-import os
 
 from loguru import logger
 
@@ -219,7 +219,9 @@ class UE4SSModManager:
 			supported_extensions.extend(extensions)
 
 		if not any(archive_path.name.lower().endswith(ext) for ext in supported_extensions):
-			raise ValueError(f"Unsupported archive format: {archive_path.suffix}. Supported: {', '.join(supported_extensions)}")
+			raise ValueError(
+				f"Unsupported archive format: {archive_path.suffix}. Supported: {', '.join(supported_extensions)}"
+			)
 
 		mod_name = archive_path.stem
 		# Handle cases like .tar.gz where stem would be .tar

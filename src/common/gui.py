@@ -526,6 +526,7 @@ class UE4SSModManagerGUI(ctk.CTk):
 	def import_mod(self) -> None:
 		"""Open a file dialog to import a mod archive."""
 		import shutil
+
 		supported_extensions = []
 		for _, extensions, _ in shutil.get_unpack_formats():
 			supported_extensions.extend(extensions)
