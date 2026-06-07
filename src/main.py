@@ -9,14 +9,18 @@ from src.common.gui import start_gui
 from src.common.mod_manager import UE4SSModManager
 
 
-def find_mods_folder() -> Path | None:
+def find_mods_folder(base_path: Path | None = None) -> Path | None:
 	"""
 	Find the mods folder path.
+
+	Args:
+		base_path: The base path to start searching from. If None, it uses the application root.
 
 	Returns:
 		The path to the mods folder or None if not found.
 	"""
-	base_path = Path(sys.executable).parent if getattr(sys, "frozen", False) else Path(__file__).parent.parent
+	if base_path is None:
+		base_path = Path(sys.executable).parent if getattr(sys, "frozen", False) else Path(__file__).parent.parent
 
 	current = base_path
 	for _ in range(5):  # Check current and 4 parents
@@ -41,14 +45,18 @@ def find_mods_folder() -> Path | None:
 	return None
 
 
-def find_assets() -> tuple[Path, Path]:
+def find_assets(base_path: Path | None = None) -> tuple[Path, Path]:
 	"""
 	Find the paths to the logo and icon assets.
+
+	Args:
+		base_path: The base path to start searching from. If None, it uses the application root.
 
 	Returns:
 		A tuple containing the paths to the logo and icon assets.
 	"""
-	base_path = Path(sys.executable).parent if getattr(sys, "frozen", False) else Path(__file__).parent.parent
+	if base_path is None:
+		base_path = Path(sys.executable).parent if getattr(sys, "frozen", False) else Path(__file__).parent.parent
 
 	possible_locations = [
 		base_path / "assets" / "img",
