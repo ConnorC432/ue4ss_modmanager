@@ -1,4 +1,7 @@
 import json
+import shutil
+import tarfile
+from pathlib import Path
 
 import pytest
 
@@ -13,6 +16,37 @@ def ue4ss_structure(tmp_path):
 	mods_dir = ue4ss_dir / "Mods"
 	mods_dir.mkdir()
 	return mods_dir
+
+
+def create_zip_mod(path: Path, mod_name: str, nested: bool = False):
+	mod_dir = path / "temp_mod"
+	mod_dir.mkdir()
+
+	actual_mod_root = mod_dir
+	if nested:
+		actual_mod_root = mod_dir / "nested" / mod_name
+		actual_mod_root.mkdir(parents=True)
+
+	(actual_mod_root / "scripts").mkdir()
+	(actual_mod_root / "scripts" / "main.lua").write_text("-- test mod")
+
+	zip_path = path / f"{mod_name}.zip"
+	shutil.make_archive(str(path / mod_name), "zip", str(mod_dir))
+	shutil.rmtree(mod_dir)
+	return zip_path
+
+
+def create_tar_gz_mod(path: Path, mod_name: str):
+	mod_dir = path / "temp_mod_tar"
+	mod_dir.mkdir()
+	(mod_dir / "scripts").mkdir()
+	(mod_dir / "scripts" / "main.lua").write_text("-- test mod tar")
+
+	tar_path = path / f"{mod_name}.tar.gz"
+	with tarfile.open(tar_path, "w:gz") as tar:
+		tar.add(mod_dir, arcname=mod_name)
+	shutil.rmtree(mod_dir)
+	return tar_path
 
 
 def test_mod_manager_init_valid(ue4ss_structure):
@@ -194,3 +228,71 @@ def test_properties(ue4ss_structure):
 	assert "Mod2" in manager.all_mods
 	assert "Mod2" in manager.enabled_mods
 	assert "Mod1" in manager.disabled_mods
+
+
+def test_import_zip_success(ue4ss_structure, tmp_path):
+	manager = UE4SSModManager(ue4ss_structure)
+	zip_path = create_zip_mod(tmp_path, "NewMod")
+
+	imported_name = manager.import_mod_archive(zip_path)
+
+	assert imported_name == "NewMod"
+	assert (ue4ss_structure / "NewMod").exists()
+	assert (ue4ss_structure / "NewMod" / "scripts" / "main.lua").exists()
+	assert "NewMod" in manager.all_mods
+
+
+def test_import_nested_zip_success(ue4ss_structure, tmp_path):
+	manager = UE4SSModManager(ue4ss_structure)
+	zip_path = create_zip_mod(tmp_path, "NestedMod", nested=True)
+
+	imported_name = manager.import_mod_archive(zip_path)
+
+	assert imported_name == "NestedMod"
+	assert (ue4ss_structure / "NestedMod").exists()
+	assert (ue4ss_structure / "NestedMod" / "scripts" / "main.lua").exists()
+	assert not (ue4ss_structure / "NestedMod" / "nested").exists()  # Should have flattened
+
+
+def test_import_tar_gz_success(ue4ss_structure, tmp_path):
+	manager = UE4SSModManager(ue4ss_structure)
+	tar_path = create_tar_gz_mod(tmp_path, "TarMod")
+
+	imported_name = manager.import_mod_archive(tar_path)
+
+	assert imported_name == "TarMod"
+	assert (ue4ss_structure / "TarMod").exists()
+	assert (ue4ss_structure / "TarMod" / "scripts" / "main.lua").exists()
+
+
+def test_import_overwrite_fails_if_false(ue4ss_structure, tmp_path):
+	manager = UE4SSModManager(ue4ss_structure)
+	(ue4ss_structure / "ExistingMod").mkdir()
+	zip_path = create_zip_mod(tmp_path, "ExistingMod")
+
+	with pytest.raises(ValueError, match="already exists"):
+		manager.import_mod_archive(zip_path, overwrite=False)
+
+
+def test_import_overwrite_success_if_true(ue4ss_structure, tmp_path):
+	manager = UE4SSModManager(ue4ss_structure)
+	existing_mod_dir = ue4ss_structure / "ExistingMod"
+	existing_mod_dir.mkdir()
+	(existing_mod_dir / "old_file.txt").touch()
+
+	zip_path = create_zip_mod(tmp_path, "ExistingMod")
+
+	imported_name = manager.import_mod_archive(zip_path, overwrite=True)
+
+	assert imported_name == "ExistingMod"
+	assert not (existing_mod_dir / "old_file.txt").exists()
+	assert (existing_mod_dir / "scripts" / "main.lua").exists()
+
+
+def test_import_invalid_format(ue4ss_structure, tmp_path):
+	manager = UE4SSModManager(ue4ss_structure)
+	invalid_file = tmp_path / "test.txt"
+	invalid_file.write_text("not an archive")
+
+	with pytest.raises(ValueError, match="Unsupported archive format"):
+		manager.import_mod_archive(invalid_file)

@@ -1,5 +1,7 @@
 from json import dumps, load
 from pathlib import Path
+import shutil
+import os
 
 from loguru import logger
 
@@ -196,3 +198,77 @@ class UE4SSModManager:
 	def all_mods(self) -> list[UE4SSMod]:
 		"""Returns a list of all mods."""
 		return [mod.name for mod in self.mods]
+
+	def import_mod_archive(self, archive_path: Path, overwrite: bool = False) -> str:
+		"""
+		Imports a mod from an archive file.
+
+		Args:
+			archive_path: The path to the mod archive.
+			overwrite: Whether to overwrite an existing mod directory.
+
+		Returns:
+			The name of the imported mod.
+
+		Raises:
+			ValueError: If the archive is invalid, has an unsupported format, or already exists and overwrite is False.
+		"""
+		# Use shutil to get supported formats
+		supported_extensions = []
+		for _, extensions, _ in shutil.get_unpack_formats():
+			supported_extensions.extend(extensions)
+
+		if not any(archive_path.name.lower().endswith(ext) for ext in supported_extensions):
+			raise ValueError(f"Unsupported archive format: {archive_path.suffix}. Supported: {', '.join(supported_extensions)}")
+
+		mod_name = archive_path.stem
+		# Handle cases like .tar.gz where stem would be .tar
+		if archive_path.name.lower().endswith(".tar.gz"):
+			mod_name = archive_path.name[:-7]
+		elif archive_path.name.lower().endswith(".tar.bz2"):
+			mod_name = archive_path.name[:-8]
+		elif archive_path.name.lower().endswith(".tar.xz"):
+			mod_name = archive_path.name[:-7]
+
+		target_dir = self.path / mod_name
+
+		if target_dir.exists() and not overwrite:
+			raise ValueError(f"Mod '{mod_name}' already exists.")
+
+		import tempfile
+
+		with tempfile.TemporaryDirectory() as temp_dir:
+			temp_path = Path(temp_dir)
+			shutil.unpack_archive(str(archive_path), extract_dir=temp_dir)
+
+			# Find the directory containing "scripts" or "dlls"
+			root_in_extracted = None
+			for root, dirs, _files in os.walk(temp_dir):
+				root_path = Path(root)
+				if "scripts" in [d.lower() for d in dirs] or "dlls" in [d.lower() for d in dirs]:
+					root_in_extracted = root_path
+					break
+
+			if target_dir.exists() and overwrite:
+				shutil.rmtree(target_dir)
+
+			target_dir.mkdir(parents=True, exist_ok=True)
+
+			if root_in_extracted is None:
+				# If no scripts/dlls found, just copy everything from the top level
+				for item in temp_path.iterdir():
+					if item.is_dir():
+						shutil.copytree(item, target_dir / item.name, dirs_exist_ok=True)
+					else:
+						shutil.copy2(item, target_dir / item.name)
+			else:
+				# Copy everything from the discovered mod root
+				for item in root_in_extracted.iterdir():
+					if item.is_dir():
+						shutil.copytree(item, target_dir / item.name, dirs_exist_ok=True)
+					else:
+						shutil.copy2(item, target_dir / item.name)
+
+		# Re-load mods after extraction
+		self.mods = self.load_mods(self._get_enabled_overrides())
+		return mod_name
