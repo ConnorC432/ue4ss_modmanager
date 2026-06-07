@@ -30,7 +30,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.13"
 
       - name: Install dependencies
         run: |
@@ -46,6 +46,8 @@ jobs:
             --windowed \
             --name "${{ matrix.asset_name }}" \
             --add-data "assets${{ matrix.add_data_sep }}assets" \
+            --add-data "assets/img/ue.svg${{ matrix.add_data_sep }}assets/img" \
+            --add-data "assets/img/ue.ico${{ matrix.add_data_sep }}assets/img" \
             src/main.py
 
       - name: Package artifact
