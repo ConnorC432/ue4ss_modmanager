@@ -40,7 +40,7 @@ select = ["E", "F", "B", "I", "S", "PL", "D"]
 ignore = [
     "D100", "D101", "D102", "D103", "D104", "D105", "D106", "D107", # Missing docstrings
     "D203", "D211", "D212", "D213", # Docstring conflicts
-    "W191", "D206", # Tab indentation conflicts
+    "D206", # Tab indentation conflicts
     "S101", # Use of assert
     "PLR2004", # Magic value in comparison
     "PLW0717", # Try clause contains too many statements
@@ -64,7 +64,7 @@ preview = true
 quote-style = "double"
 docstring-code-format = true
 
-indent-style = "tab"
+indent-style = "space"
 
 skip-magic-trailing-comma = false
 
