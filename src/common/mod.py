@@ -41,25 +41,18 @@ class UE4SSMod:
 			logger.warning(f"Mod {name} is not a directory.")
 			return None
 
-		lua = [
-			str(script).replace("/", "").replace("\\", "").split(name)[1][7:]
-			for script in path.glob("scripts/*.lua", case_sensitive=False)
-		]
+		lua = [str(script.relative_to(path)) for script in path.glob("scripts/*.lua", case_sensitive=False)]
+		dll = [str(script.relative_to(path)) for script in path.glob("dlls/*.dll", case_sensitive=False)]
 
-		dll = [
-			str(script).replace("/", "").replace("\\", "").split(name)[1][7:]
-			for script in path.glob("dlls/*.dll", case_sensitive=False)
-		]
-
-		scripts = lua + dll
+		scripts = [s.replace("\\", "/") for s in lua + dll]
 
 		if not scripts:
 			raise InvalidModException(f"Mod {name} has no scripts.")
 
-		if "main.lua" not in scripts and "main.dll" not in scripts:
+		if "scripts/main.lua" not in scripts and "dlls/main.dll" not in scripts:
 			raise InvalidModException(f"Mod {name} does not have a main file: {scripts}")
 
-		lang = "lua" if "main.lua" in scripts else "cpp"
+		lang = "lua" if "scripts/main.lua" in scripts else "cpp"
 
 		enabled = (path / "enabled.txt").exists() or override_enabled
 
