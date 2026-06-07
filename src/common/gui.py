@@ -1,5 +1,6 @@
 import sys
 from pathlib import Path
+from tkinter import filedialog
 
 import customtkinter as ctk
 from loguru import logger
@@ -174,6 +175,14 @@ class UE4SSModManagerGUI(ctk.CTk):
 			width=24,
 		)
 		self.toggle_all_checkbox.pack(side="left", padx=10, pady=5)
+
+		self.import_button = ctk.CTkButton(
+			self.controls_frame,
+			text="Import Mod",
+			command=self.import_mod,
+			width=100,
+		)
+		self.import_button.pack(side="left", padx=5, pady=5)
 
 		self.refresh_button = ctk.CTkButton(
 			self.controls_frame,
@@ -513,6 +522,52 @@ class UE4SSModManagerGUI(ctk.CTk):
 				parent_frame.pack(fill="x", padx=5, pady=2)
 			else:
 				parent_frame.pack_forget()
+
+	def import_mod(self) -> None:
+		"""Open a file dialog to import a mod archive."""
+		import shutil
+		supported_extensions = []
+		for _, extensions, _ in shutil.get_unpack_formats():
+			supported_extensions.extend(extensions)
+
+		# Format extensions for tkinter: e.g. "*.zip *.tar.gz"
+		extensions_str = " ".join(f"*{ext}" for ext in supported_extensions)
+
+		file_path = filedialog.askopenfilename(
+			title="Select Mod Archive",
+			filetypes=[("Mod Archives", extensions_str), ("All files", "*.*")],
+		)
+
+		if not file_path:
+			return
+
+		try:
+			archive_path = Path(file_path)
+			mod_name = archive_path.stem
+			target_dir = self.mod_manager.path / mod_name
+
+			def do_import(overwrite: bool = False) -> None:
+				try:
+					imported_mod_name = self.mod_manager.import_mod_archive(archive_path, overwrite=overwrite)
+					self.refresh_mods()
+					self.status_bar.configure(text=f"Successfully imported mod: {imported_mod_name}")
+				except Exception as e:
+					logger.exception(f"Error importing mod: {e}")
+					self.show_error("Import Error", str(e))
+
+			if target_dir.exists():
+				self.show_warning(
+					"Overwrite Mod",
+					f"Mod '{mod_name}' already exists. Do you want to overwrite it?",
+					on_ok=lambda: do_import(overwrite=True),
+					on_cancel=lambda: None,
+				)
+			else:
+				do_import(overwrite=False)
+
+		except Exception as e:
+			logger.exception(f"Error initiating import: {e}")
+			self.show_error("Import Error", str(e))
 
 	def center_window(self) -> None:
 		"""Center the window on the screen."""

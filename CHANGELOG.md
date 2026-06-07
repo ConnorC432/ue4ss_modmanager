@@ -1,3 +1,6 @@
+## v0.2.4
+- Added mod archive import button
+
 ## v0.2.3
 - Fixed logo not displaying on Linux builds
 
