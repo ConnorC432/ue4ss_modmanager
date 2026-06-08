@@ -334,6 +334,7 @@ def test_pak_mod_manager_import(tmp_path) -> None:
     manager = PakModManager(pak_dir)
 
     import zipfile
+
     archive_path = tmp_path / "PakMod.zip"
     with zipfile.ZipFile(archive_path, "w") as z:
         z.writestr("MyCoolMod.pak", "fake pak content")
@@ -351,6 +352,7 @@ def test_pak_mod_manager_import_no_pak(tmp_path) -> None:
     manager = PakModManager(pak_dir)
 
     import zipfile
+
     archive_path = tmp_path / "NoPak.zip"
     with zipfile.ZipFile(archive_path, "w") as z:
         z.writestr("readme.txt", "no pak here")
@@ -366,6 +368,7 @@ def test_pak_mod_manager_import_overwrite(tmp_path) -> None:
     manager = PakModManager(pak_dir)
 
     import zipfile
+
     archive_path = tmp_path / "New.zip"
     with zipfile.ZipFile(archive_path, "w") as z:
         z.writestr("Overwrite.pak", "new")
@@ -385,6 +388,7 @@ def test_import_multiple_paks_success(tmp_path) -> None:
     manager = PakModManager(pak_dir)
 
     import zipfile
+
     archive_path = tmp_path / "MultiPak.zip"
     with zipfile.ZipFile(archive_path, "w") as z:
         z.writestr("Mod1.pak", "data1")
@@ -402,6 +406,7 @@ def test_import_nested_paks_success(tmp_path) -> None:
     manager = PakModManager(pak_dir)
 
     import zipfile
+
     archive_path = tmp_path / "NestedPak.zip"
     with zipfile.ZipFile(archive_path, "w") as z:
         z.writestr("Folder/Subfolder/Nested.pak", "data")
@@ -416,6 +421,7 @@ def test_import_mixed_content_ue4ss(ue4ss_structure, tmp_path) -> None:
     manager = UE4SSModManager(ue4ss_structure)
 
     import zipfile
+
     archive_path = tmp_path / "MixedMod.zip"
     with zipfile.ZipFile(archive_path, "w") as z:
         z.writestr("MyMod/scripts/main.lua", "-- lua")

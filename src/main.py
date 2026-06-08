@@ -28,9 +28,13 @@ def find_game_root(base_path: Path | None = None) -> Path | None:
             return current
 
         # Check if we are inside Binaries/Win64/UE4SS/Mods or Binaries/Win64/ue4ss/Mods
-        if current.name.upper() == "MODS" and current.parent.name.upper() == "UE4SS" and (
-            current.parent.parent.name.upper() == "WIN64"
-            and current.parent.parent.parent.name.upper() == "BINARIES"
+        if (
+            current.name.upper() == "MODS"
+            and current.parent.name.upper() == "UE4SS"
+            and (
+                current.parent.parent.name.upper() == "WIN64"
+                and current.parent.parent.parent.name.upper() == "BINARIES"
+            )
         ):
             potential_root = current.parent.parent.parent.parent
             if (potential_root / "Binaries").is_dir() and (potential_root / "Content").is_dir():

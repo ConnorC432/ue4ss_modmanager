@@ -119,6 +119,7 @@ def test_mod_equality(tmp_path: Path) -> None:
 
 def test_pak_mod_from_path(tmp_path) -> None:
     from src.common.mod import PakMod
+
     pak_path = tmp_path / "TestMod.pak"
     pak_path.touch()
 
@@ -137,6 +138,7 @@ def test_pak_mod_from_path(tmp_path) -> None:
 
 def test_pak_mod_enable_disable(tmp_path) -> None:
     from src.common.mod import PakMod
+
     pak_path = tmp_path / "Toggle.pak"
     pak_path.touch()
 
@@ -161,6 +163,7 @@ def test_pak_mod_enable_disable(tmp_path) -> None:
 
 def test_pak_mod_enable_disable_idempotent(tmp_path) -> None:
     from src.common.mod import PakMod
+
     pak_path = tmp_path / "Idem.pak"
     pak_path.touch()
 

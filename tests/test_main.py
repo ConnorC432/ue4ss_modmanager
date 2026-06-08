@@ -323,6 +323,7 @@ def test_main_unexpected_exception(monkeypatch, tmp_path) -> None:
     def mock_find_game_root(*args, **kwargs):
         msg = "Unexpected"
         raise ValueError(msg)
+
     monkeypatch.setattr("src.main.find_game_root", mock_find_game_root)
     monkeypatch.setattr("src.main.find_assets", lambda *args, **kwargs: (None, None, None))
 

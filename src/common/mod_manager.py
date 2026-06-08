@@ -178,9 +178,7 @@ class UE4SSModManager(ModManager):
 
         if not any(archive_path.name.lower().endswith(ext) for ext in supported_extensions):
             msg = f"Unsupported archive format: {archive_path.suffix}. Supported: {', '.join(supported_extensions)}"
-            raise ValueError(
-                msg
-            )
+            raise ValueError(msg)
 
         mod_name = archive_path.stem
         # Handle cases like .tar.gz where stem would be .tar
@@ -251,8 +249,7 @@ class PakModManager(ModManager):
         return [
             PakMod.from_path(item)
             for item in self.path.iterdir()
-            if item.is_file()
-            and (item.name.lower().endswith(".pak") or item.name.lower().endswith(".pak.disabled"))
+            if item.is_file() and (item.name.lower().endswith(".pak") or item.name.lower().endswith(".pak.disabled"))
         ]
 
     def import_mod_archive(self, archive_path: Path, overwrite: bool = False) -> str:
