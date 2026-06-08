@@ -19,13 +19,11 @@ class Mod(ABC):
     @abstractmethod
     def enable(self) -> None:
         """Enables the mod."""
-        pass
 
     @property
     @abstractmethod
     def mod_type(self) -> str:
         """Returns the type of the mod."""
-        pass
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Mod):
@@ -77,10 +75,12 @@ class UE4SSMod(Mod):
         scripts = [s.replace("\\", "/") for s in lua + dll]
 
         if not scripts:
-            raise InvalidModException(f"Mod {name} has no scripts.")
+            msg = f"Mod {name} has no scripts."
+            raise InvalidModException(msg)
 
         if "scripts/main.lua" not in scripts and "dlls/main.dll" not in scripts:
-            raise InvalidModException(f"Mod {name} does not have a main file: {scripts}")
+            msg = f"Mod {name} does not have a main file: {scripts}"
+            raise InvalidModException(msg)
 
         lang = "lua" if "scripts/main.lua" in scripts else "cpp"
 

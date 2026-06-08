@@ -7,8 +7,8 @@ import customtkinter as ctk
 from loguru import logger
 from PIL import Image, ImageTk
 
-from src.common.mod import Mod, UE4SSMod
-from src.common.mod_manager import ModManager, UE4SSModManager, PakModManager
+from src.common.mod import UE4SSMod
+from src.common.mod_manager import ModManager, PakModManager, UE4SSModManager
 
 
 class UE4SSModManagerGUI(ctk.CTk):
@@ -28,7 +28,7 @@ class UE4SSModManagerGUI(ctk.CTk):
         self.initial_mod_states = {}
         for manager in mod_managers:
             for mod in manager.mods:
-                self.initial_mod_states[(id(manager), mod.name)] = mod.enabled
+                self.initial_mod_states[id(manager), mod.name] = mod.enabled
 
         self.mod_checkboxes = {}  # (manager_id, mod_name) -> checkbox
 
@@ -70,9 +70,10 @@ class UE4SSModManagerGUI(ctk.CTk):
                 else:
                     self.icon_img = ImageTk.PhotoImage(Image.open(icon_path))
                     self.wm_iconphoto(True, self.icon_img)
-                logger.debug(f"Set window icon: {icon_path}")
-            except Exception as e:
+            except (OSError, RuntimeError, AttributeError) as e:
                 logger.error(f"Failed to set window icon: {e}")
+            else:
+                logger.debug(f"Set window icon: {icon_path}")
 
     @staticmethod
     def _setup_theme() -> None:
@@ -82,47 +83,84 @@ class UE4SSModManagerGUI(ctk.CTk):
 
     def _create_header(self, logo_path: Path | None = None, dark_logo_path: Path | None = None) -> None:
         """Create the header with logo or title."""
-        if logo_path and logo_path.exists():
-            try:
-                # Use ctk.CTkImage for high DPI support
-                pil_image = Image.open(logo_path)
-                original_width, original_height = pil_image.size
-                aspect_ratio = original_width / original_height
-
-                # Target height is 54, calculate width based on aspect ratio
-                target_height = 54
-                target_width = int(target_height * aspect_ratio)
-
-                # Limit width if it becomes too large
-                if target_width > 300:
-                    target_width = 300
-                    target_height = int(target_width / aspect_ratio)
-
-                dark_pil_image = pil_image
-                if dark_logo_path and dark_logo_path.exists():
-                    try:
-                        dark_pil_image = Image.open(dark_logo_path)
-                    except Exception as e:
-                        logger.warning(f"Failed to load dark logo image: {e}")
-
-                self.logo_image = ctk.CTkImage(
-                    light_image=pil_image,
-                    dark_image=dark_pil_image,
-                    size=(target_width, target_height),
-                )
-                self.logo_label = ctk.CTkLabel(self.main_frame, image=self.logo_image, text="")
-                self.logo_label.pack(pady=(0, 15))
-                logger.debug(f"Set logo image: {logo_path} (size: {target_width}x{target_height})")
-            except Exception as e:
-                logger.error(f"Failed to load logo image: {e}")
-                self._create_title_label()
-        else:
+        if not logo_path or not logo_path.exists():
             self._create_title_label()
+        else:
+            self._setup_logo(logo_path, dark_logo_path)
 
         self.header_frame = ctk.CTkFrame(self.main_frame)
         self.header_frame.pack(fill="x", padx=10, pady=(0, 5))
         self.separator1 = ctk.CTkFrame(self.main_frame, height=1, fg_color="gray30")
         self.separator1.pack(fill="x", padx=10, pady=3)
+
+    def _setup_logo(self, logo_path: Path, dark_logo_path: Path | None) -> None:
+        """Set up the logo image."""
+        try:
+            pil_image = Image.open(logo_path)
+            target_width, target_height = self._calculate_logo_size(pil_image)
+            dark_pil_image = self._load_dark_logo(dark_logo_path, pil_image)
+            self._display_logo(pil_image, dark_pil_image, target_width, target_height)
+        except (OSError, RuntimeError) as e:
+            logger.error(f"Failed to load logo image: {e}")
+            self._create_title_label()
+        else:
+            logger.debug(f"Set logo image: {logo_path} (size: {target_width}x{target_height})")
+
+    def _display_logo(
+        self,
+        pil_image: Image.Image,
+        dark_pil_image: Image.Image,
+        target_width: int,
+        target_height: int,
+    ) -> None:
+        """Display the logo image in the GUI."""
+        self.logo_image = ctk.CTkImage(
+            light_image=pil_image,
+            dark_image=dark_pil_image,
+            size=(target_width, target_height),
+        )
+        self.logo_label = ctk.CTkLabel(self.main_frame, image=self.logo_image, text="")
+        self.logo_label.pack(pady=(0, 15))
+
+    @staticmethod
+    def _calculate_logo_size(pil_image: Image.Image) -> tuple[int, int]:
+        """Calculate the target size for the logo image.
+
+        Args:
+            pil_image: The PIL image object.
+
+        Returns:
+            A tuple of (width, height) for the target size.
+        """
+        max_logo_width = 300
+        original_width, original_height = pil_image.size
+        aspect_ratio = original_width / original_height
+
+        target_height = 54
+        target_width = int(target_height * aspect_ratio)
+
+        if target_width > max_logo_width:
+            target_width = max_logo_width
+            target_height = int(target_width / aspect_ratio)
+
+        return target_width, target_height
+
+    def _load_dark_logo(self, dark_logo_path: Path | None, default_image: Image.Image) -> Image.Image:
+        """Load the dark logo image if available.
+
+        Args:
+            dark_logo_path: Path to the dark logo image.
+            default_image: Default image to return if dark logo loading fails.
+
+        Returns:
+            The loaded dark logo image or the default image.
+        """
+        if dark_logo_path and dark_logo_path.exists():
+            try:
+                return Image.open(dark_logo_path)
+            except (OSError, RuntimeError) as e:
+                logger.warning(f"Failed to load dark logo image: {e}")
+        return default_image
 
     def _create_title_label(self) -> None:
         """Create the title label if no logo is available."""
@@ -229,106 +267,90 @@ class UE4SSModManagerGUI(ctk.CTk):
 
     def refresh_mods(self) -> None:
         """Reload mods from disk."""
-        try:
-            self.initial_mod_states = {}
-            for manager in self.mod_managers:
-                manager.mods = manager.load_mods()
-                for mod in manager.mods:
-                    self.initial_mod_states[(id(manager), mod.name)] = mod.enabled
+        self.initial_mod_states = {}
+        for manager in self.mod_managers:
+            manager.mods = manager.load_mods()
+            for mod in manager.mods:
+                self.initial_mod_states[id(manager), mod.name] = mod.enabled
 
-            self.populate_mod_list()
+        self.populate_mod_list()
 
-            total_mods = sum(len(m.mods) for m in self.mod_managers)
-            self.status_bar.configure(text=f"Refreshed {total_mods} mods")
-
-        except Exception as e:
-            logger.exception(f"Error refreshing mods: {e}")
-            self.show_error("Error Refreshing Mods", str(e))
+        total_mods = sum(len(m.mods) for m in self.mod_managers)
+        self.status_bar.configure(text=f"Refreshed {total_mods} mods")
 
     def populate_mod_list(self) -> None:
         """Populate the mod list with checkboxes for each mod."""
-        try:
-            for widget in self.mod_list_frame.winfo_children():
-                widget.destroy()
+        for widget in self.mod_list_frame.winfo_children():
+            widget.destroy()
 
-            self.mod_checkboxes = {}
+        self.mod_checkboxes = {}
 
-            # Flatten mods from all managers
-            all_mods_with_managers = []
-            for manager in self.mod_managers:
-                for mod in manager.mods:
-                    all_mods_with_managers.append((manager, mod))
+        # Flatten mods from all managers
+        all_mods_with_managers = []
+        for manager in self.mod_managers:
+            all_mods_with_managers.extend((manager, mod) for mod in manager.mods)
 
-            # Sort mods by name
-            all_mods_with_managers.sort(key=lambda x: x[1].name.lower())
+        # Sort mods by name
+        all_mods_with_managers.sort(key=lambda x: x[1].name.lower())
 
-            for manager, mod in all_mods_with_managers:
-                is_ue4ss = isinstance(mod, UE4SSMod)
+        for manager, mod in all_mods_with_managers:
+            is_ue4ss = isinstance(mod, UE4SSMod)
 
-                # Filter based on search text
-                search_text = self.search_var.get().lower()
-                if search_text and search_text not in mod.name.lower():
-                    continue
+            # Filter based on search text
+            search_text = str(self.search_var.get()).lower()
+            if search_text and search_text not in str(mod.name).lower():
+                continue
 
-                frame = ctk.CTkFrame(self.mod_list_frame)
-                frame.pack(fill="x", padx=5, pady=2)
+            frame = ctk.CTkFrame(self.mod_list_frame)
+            frame.pack(fill="x", padx=5, pady=2)
 
-                # Mod type tag
-                type_tag = ctk.CTkLabel(
+            # Mod type tag
+            type_tag = ctk.CTkLabel(
+                frame,
+                text=f"[{mod.mod_type}]",
+                font=ctk.CTkFont(size=10, weight="bold"),
+                text_color="gray",
+                width=50,
+            )
+            type_tag.pack(side="left", padx=(5, 0))
+
+            checkbox = ctk.CTkCheckBox(
+                frame,
+                text=f"{mod.name}",
+                variable=ctk.BooleanVar(value=mod.enabled),
+                command=self.update_save_button_state,
+                onvalue=True,
+                offvalue=False,
+                width=24,
+            )
+            checkbox.pack(side="left", padx=10, pady=5)
+
+            if is_ue4ss:
+                script_count = ctk.CTkLabel(
                     frame,
-                    text=f"[{mod.mod_type}]",
-                    font=ctk.CTkFont(size=10, weight="bold"),
+                    text=f"{len(mod.scripts)} script(s)",
+                    font=ctk.CTkFont(size=12),
                     text_color="gray",
-                    width=50,
                 )
-                type_tag.pack(side="left", padx=(5, 0))
+                script_count.pack(side="right", padx=10, pady=5)
 
-                checkbox = ctk.CTkCheckBox(
-                    frame,
-                    text=f"{mod.name}",
-                    variable=ctk.BooleanVar(value=mod.enabled),
-                    command=self.update_save_button_state,
-                    onvalue=True,
-                    offvalue=False,
-                    width=24,
-                )
-                checkbox.pack(side="left", padx=10, pady=5)
+            self.mod_checkboxes[id(manager), mod.name] = checkbox
 
-                if is_ue4ss:
-                    script_count = ctk.CTkLabel(
-                        frame,
-                        text=f"{len(mod.scripts)} script(s)",
-                        font=ctk.CTkFont(size=12),
-                        text_color="gray",
-                    )
-                    script_count.pack(side="right", padx=10, pady=5)
-
-                self.mod_checkboxes[(id(manager), mod.name)] = checkbox
-
-            visible_count = len(self.mod_checkboxes)
-            enabled_count = sum(1 for cb in self.mod_checkboxes.values() if cb.get())
-            self.status_bar.configure(text=f"Showing {visible_count} mods ({enabled_count} enabled)")
-
-        except Exception as e:
-            logger.exception(f"Error populating mod list: {e}")
-            self.show_error("Error populating mod list", str(e))
+        visible_count = len(self.mod_checkboxes)
+        enabled_count = sum(1 for cb in self.mod_checkboxes.values() if cb.get())
+        self.status_bar.configure(text=f"Showing {visible_count} mods ({enabled_count} enabled)")
 
     def reset_mods(self) -> None:
         """Reset mods to their initial states when the app was launched."""
-        try:
-            for (manager_id, mod_name), checkbox in self.mod_checkboxes.items():
-                initial_state = self.initial_mod_states.get((manager_id, mod_name), False)
-                if initial_state:
-                    checkbox.select()
-                else:
-                    checkbox.deselect()
+        for (manager_id, mod_name), checkbox in self.mod_checkboxes.items():
+            initial_state = self.initial_mod_states.get((manager_id, mod_name), False)
+            if initial_state:
+                checkbox.select()
+            else:
+                checkbox.deselect()
 
-            self.status_bar.configure(text="Mods reset to initial state. Click Save to apply.")
-            self.update_save_button_state()
-
-        except Exception as e:
-            logger.exception(f"Error resetting mods: {e}")
-            self.show_error("Error Resetting Mods", str(e))
+        self.status_bar.configure(text="Mods reset to initial state. Click Save to apply.")
+        self.update_save_button_state()
 
     def show_warning(self, title: str, message: str, on_ok: callable, on_cancel: callable) -> None:
         """Show a warning popup with OK and Cancel buttons."""
@@ -378,78 +400,106 @@ class UE4SSModManagerGUI(ctk.CTk):
         Returns:
             A mapping with (manager_id, mod_name) as keys and their enabled status as values.
         """
-        try:
-            mod_status = {}
-            for (manager_id, mod_name), checkbox in self.mod_checkboxes.items():
-                mod_status[(manager_id, mod_name)] = checkbox.get()
+        mod_status = {}
+        for (manager_id, mod_name), checkbox in self.mod_checkboxes.items():
+            mod_status[manager_id, mod_name] = checkbox.get()
 
-            return mod_status
-        except Exception as e:
-            logger.exception(f"Error getting mod status: {e}")
-            self.show_error("Error Getting Mod Status", str(e))
-            return {}
-
+        return mod_status
 
     def save_changes(self) -> None:
         """Save the changes to the mods."""
-        try:
-            for manager in self.mod_managers:
-                updated_mods = []
-                for mod in manager.mods:
-                    checkbox = self.mod_checkboxes.get((id(manager), mod.name))
-                    if checkbox:
-                        mod.enabled = checkbox.get()
-                        updated_mods.append(mod)
+        for manager in self.mod_managers:
+            updated_mods = []
+            for mod in manager.mods:
+                checkbox = self.mod_checkboxes.get((id(manager), mod.name))
+                if checkbox:
+                    mod.enabled = checkbox.get()
+                    updated_mods.append(mod)
 
-                if isinstance(manager, UE4SSModManager):
-                    manager.parse_mods(mods=updated_mods)
-                else:
-                    for mod in updated_mods:
-                        if mod.enabled:
-                            mod.enable()
-                        else:
-                            mod.disable()
+            if isinstance(manager, UE4SSModManager):
+                manager.parse_mods(mods=updated_mods)
+            else:
+                for mod in updated_mods:
+                    if mod.enabled:
+                        mod.enable()
+                    else:
+                        mod.disable()
 
-            self.status_bar.configure(text="Changes saved.")
-            self.populate_mod_list()
-            self.initial_mod_states = self.get_mod_status()
-            self.update_save_button_state()
-
-        except Exception as e:
-            logger.exception(f"Error saving changes: {e}")
-            self.show_error("Error Saving Changes", str(e))
+        self.status_bar.configure(text="Changes saved.")
+        self.populate_mod_list()
+        self.initial_mod_states = self.get_mod_status()
+        self.update_save_button_state()
 
     def toggle_all_mods(self) -> None:
         """Toggle all mods on or off based on the Toggle All checkbox."""
-        try:
-            new_state = self.toggle_all_var.get()
+        new_state = self.toggle_all_var.get()
 
-            for checkbox in self.mod_checkboxes.values():
-                if new_state:
-                    checkbox.select()
-                else:
-                    checkbox.deselect()
+        for checkbox in self.mod_checkboxes.values():
+            if new_state:
+                checkbox.select()
+            else:
+                checkbox.deselect()
 
-            self.status_bar.configure(text=f"All mods {'enabled' if new_state else 'disabled'}. Click Save to apply.")
-
-        except Exception as e:
-            logger.exception(f"Error toggling mods: {e}")
-            self.show_error("Error Toggling Mods", str(e))
+        self.status_bar.configure(text=f"All mods {'enabled' if new_state else 'disabled'}. Click Save to apply.")
 
     def filter_mods(self) -> None:
         """Filter mods based on search text."""
         self.populate_mod_list()
 
+    def _detect_mod_type(self, archive_path: Path) -> ModManager:
+        """Detect mod type by looking into the archive and return the appropriate manager.
+
+        Args:
+            archive_path: Path to the mod archive.
+
+        Returns:
+            The mod manager that can handle this mod type.
+
+        Raises:
+            ValueError: If the mod type cannot be determined or no manager is available.
+        """
+        import shutil
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            shutil.unpack_archive(str(archive_path), extract_dir=temp_dir)
+
+            is_ue4ss = False
+            is_pak = False
+
+            for _root, dirs, files in os.walk(temp_dir):
+                if "scripts" in [d.lower() for d in dirs] or "dlls" in [d.lower() for d in dirs]:
+                    is_ue4ss = True
+                    break
+                if any(f.lower().endswith(".pak") for f in files):
+                    is_pak = True
+
+            manager = None
+            if is_ue4ss:
+                manager = next((m for m in self.mod_managers if isinstance(m, UE4SSModManager)), None)
+            elif is_pak:
+                manager = next((m for m in self.mod_managers if isinstance(m, PakModManager)), None)
+
+            if not manager:
+                if is_ue4ss:
+                    msg = "UE4SS mod detected, but no UE4SS mod manager is active."
+                    raise ValueError(msg)
+                if is_pak:
+                    msg = "PAK mod detected, but no PAK mod manager is active."
+                    raise ValueError(msg)
+                msg = "Could not determine mod type from archive (no scripts, dlls, or .pak files found)."
+                raise ValueError(msg)
+
+            return manager
+
     def import_mod(self) -> None:
         """Open a file dialog to import a mod archive."""
         import shutil
-        import tempfile
 
         supported_extensions = []
         for _, extensions, _ in shutil.get_unpack_formats():
             supported_extensions.extend(extensions)
 
-        # Format extensions for tkinter: e.g. "*.zip *.tar.gz"
         extensions_str = " ".join(f"*{ext}" for ext in supported_extensions)
 
         file_path = filedialog.askopenfilename(
@@ -460,77 +510,44 @@ class UE4SSModManagerGUI(ctk.CTk):
         if not file_path:
             return
 
+        archive_path = Path(file_path)
         try:
-            archive_path = Path(file_path)
-
-            # Detect mod type by looking into the archive
-            manager = None
-            with tempfile.TemporaryDirectory() as temp_dir:
-                shutil.unpack_archive(str(archive_path), extract_dir=temp_dir)
-
-                is_ue4ss = False
-                is_pak = False
-
-                for root, dirs, files in os.walk(temp_dir):
-                    if "scripts" in [d.lower() for d in dirs] or "dlls" in [d.lower() for d in dirs]:
-                        is_ue4ss = True
-                        break
-                    if any(f.lower().endswith(".pak") for f in files):
-                        is_pak = True
-
-                if is_ue4ss:
-                    manager = next((m for m in self.mod_managers if isinstance(m, UE4SSModManager)), None)
-                elif is_pak:
-                    manager = next((m for m in self.mod_managers if isinstance(m, PakModManager)), None)
-
-                if not manager:
-                    # Fallback or error
-                    if is_ue4ss:
-                        raise ValueError("UE4SS mod detected, but no UE4SS mod manager is active.")
-                    elif is_pak:
-                        raise ValueError("PAK mod detected, but no PAK mod manager is active.")
-                    else:
-                        raise ValueError("Could not determine mod type from archive (no scripts, dlls, or .pak files found).")
-
-            mod_name = archive_path.stem
-            # Handle cases like .tar.gz where stem would be .tar
-            if archive_path.name.lower().endswith(".tar.gz"):
-                mod_name = archive_path.name[:-7]
-            elif archive_path.name.lower().endswith(".tar.bz2"):
-                mod_name = archive_path.name[:-8]
-            elif archive_path.name.lower().endswith(".tar.xz"):
-                mod_name = archive_path.name[:-7]
-
-            def do_import(overwrite: bool = False) -> None:
-                try:
-                    imported_mod_name = manager.import_mod_archive(archive_path, overwrite=overwrite)
-                    self.refresh_mods()
-                    self.status_bar.configure(text=f"Successfully imported mod: {imported_mod_name}")
-                except Exception as e:
-                    logger.exception(f"Error importing mod: {e}")
-                    self.show_error("Import Error", str(e))
-
-            # Re-check existence for the warning
-            already_exists = False
-            if isinstance(manager, UE4SSModManager):
-                if (manager.path / mod_name).exists():
-                    already_exists = True
-            elif isinstance(manager, PakModManager):
-                pass
-
-            if isinstance(manager, UE4SSModManager) and already_exists:
-                self.show_warning(
-                    "Overwrite Mod",
-                    f"Mod '{mod_name}' already exists. Do you want to overwrite it?",
-                    on_ok=lambda: do_import(overwrite=True),
-                    on_cancel=lambda: None,
-                )
-            else:
-                do_import(overwrite=False)
-
-        except Exception as e:
+            manager = self._detect_mod_type(archive_path)
+        except (ValueError, OSError) as e:
             logger.exception(f"Error initiating import: {e}")
             self.show_error("Import Error", str(e))
+            return
+
+        mod_name = archive_path.stem
+        if archive_path.name.lower().endswith(".tar.gz"):
+            mod_name = archive_path.name[:-7]
+        elif archive_path.name.lower().endswith(".tar.bz2"):
+            mod_name = archive_path.name[:-8]
+        elif archive_path.name.lower().endswith(".tar.xz"):
+            mod_name = archive_path.name[:-7]
+
+        def do_import(overwrite: bool = False) -> None:
+            try:
+                imported_mod_name = manager.import_mod_archive(archive_path, overwrite=overwrite)
+                self.refresh_mods()
+                self.status_bar.configure(text=f"Successfully imported mod: {imported_mod_name}")
+            except (ValueError, OSError) as e:
+                logger.exception(f"Error importing mod: {e}")
+                self.show_error("Import Error", str(e))
+
+        already_exists = False
+        if isinstance(manager, UE4SSModManager) and (manager.path / mod_name).exists():
+            already_exists = True
+
+        if isinstance(manager, UE4SSModManager) and already_exists:
+            self.show_warning(
+                "Overwrite Mod",
+                f"Mod '{mod_name}' already exists. Do you want to overwrite it?",
+                on_ok=lambda: do_import(overwrite=True),
+                on_cancel=lambda: None,
+            )
+        else:
+            do_import(overwrite=False)
 
     def center_window(self) -> None:
         """Center the window on the screen."""

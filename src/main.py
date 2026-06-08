@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 import sys
 from pathlib import Path
 
@@ -6,7 +5,7 @@ from loguru import logger
 
 from src.common.exceptions import InvalidModException, InvalidModFolderException
 from src.common.gui import start_gui
-from src.common.mod_manager import UE4SSModManager, PakModManager
+from src.common.mod_manager import PakModManager, UE4SSModManager
 
 
 def find_game_root(base_path: Path | None = None) -> Path | None:
@@ -29,11 +28,17 @@ def find_game_root(base_path: Path | None = None) -> Path | None:
             return current
 
         # Check if we are inside Binaries/Win64/UE4SS/Mods or Binaries/Win64/ue4ss/Mods
-        if current.name.upper() == "MODS" and current.parent.name.upper() in ("UE4SS", "UE4SS"):
-            if current.parent.parent.name.upper() == "WIN64" and current.parent.parent.parent.name.upper() == "BINARIES":
-                potential_root = current.parent.parent.parent.parent
-                if (potential_root / "Binaries").is_dir() and (potential_root / "Content").is_dir():
-                    return potential_root
+        if (
+            current.name.upper() == "MODS"
+            and current.parent.name.upper() == "UE4SS"
+            and (
+                current.parent.parent.name.upper() == "WIN64"
+                and current.parent.parent.parent.name.upper() == "BINARIES"
+            )
+        ):
+            potential_root = current.parent.parent.parent.parent
+            if (potential_root / "Binaries").is_dir() and (potential_root / "Content").is_dir():
+                return potential_root
 
         if current.parent == current:  # Root reached
             break
@@ -121,6 +126,27 @@ def find_assets(base_path: Path | None = None) -> tuple[Path | None, Path | None
     return logo_path, dark_logo_path, icon_path
 
 
+def _create_managers(game_root: Path) -> list:
+    """Create mod managers for the game root.
+
+    Args:
+        game_root: Path to the game root folder.
+
+    Returns:
+        A list of ModManager instances.
+    """
+    ue4ss_mods_path = find_mods_folder(game_root)
+    pak_mods_path = game_root / "Content" / "Paks"
+
+    managers = []
+    if ue4ss_mods_path and ue4ss_mods_path.exists():
+        managers.append(UE4SSModManager(ue4ss_mods_path))
+    if pak_mods_path.exists():
+        managers.append(PakModManager(pak_mods_path))
+
+    return managers
+
+
 def main() -> None:
     """Main entry point for the application."""
     import customtkinter as ctk
@@ -164,35 +190,45 @@ def main() -> None:
         game_root = find_game_root()
         if not game_root:
             show_startup_error(
-                "Could not find the game root folder.\nPlease place this executable in the game's root folder or UE4SS/Mods folder.",
+                "Could not find the game root folder.\n"
+                "Please place this executable in the game's root folder or UE4SS/Mods folder.",
             )
             return
 
         logo_path, dark_logo_path, icon_path = find_assets()
+        _start_with_managers(game_root, logo_path, dark_logo_path, icon_path, show_startup_error)
 
-        try:
-            ue4ss_mods_path = find_mods_folder(game_root)
-            pak_mods_path = game_root / "Content" / "Paks"
+    except (ValueError, OSError, RuntimeError) as e:
+        logger.exception("An unexpected error occurred")
+        show_startup_error(f"An unexpected error occurred:\n{e}")
 
-            managers = []
-            if ue4ss_mods_path and ue4ss_mods_path.exists():
-                managers.append(UE4SSModManager(ue4ss_mods_path))
-            if pak_mods_path.exists():
-                managers.append(PakModManager(pak_mods_path))
 
-            if not managers:
-                show_startup_error("No mod folders found.")
-                return
+def _start_with_managers(
+    game_root: Path,
+    logo_path: Path | None,
+    dark_logo_path: Path | None,
+    icon_path: Path | None,
+    show_startup_error: callable,
+) -> None:
+    """Initialize and start the GUI with mod managers.
 
-        except (InvalidModFolderException, InvalidModException) as e:
-            show_startup_error(str(e))
+    Args:
+        game_root: Path to the game root folder.
+        logo_path: Path to the logo image.
+        dark_logo_path: Path to the dark logo image.
+        icon_path: Path to the icon image.
+        show_startup_error: Function to show startup errors.
+    """
+    try:
+        managers = _create_managers(game_root)
+        if not managers:
+            show_startup_error("No mod folders found.")
             return
 
         start_gui(managers, logo_path, icon_path, dark_logo_path)
 
-    except Exception as e:
-        logger.exception("An unexpected error occurred")
-        show_startup_error(f"An unexpected error occurred:\n{e}")
+    except (InvalidModFolderException, InvalidModException) as e:
+        show_startup_error(str(e))
 
 
 if __name__ == "__main__":

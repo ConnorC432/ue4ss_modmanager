@@ -6,7 +6,7 @@ from src.common.exceptions import InvalidModException
 from src.common.mod import UE4SSMod
 
 
-def test_mod_from_path_valid_lua(tmp_path):
+def test_mod_from_path_valid_lua(tmp_path) -> None:
     mod_dir = tmp_path / "MyMod"
     mod_dir.mkdir()
     scripts_dir = mod_dir / "scripts"
@@ -22,7 +22,7 @@ def test_mod_from_path_valid_lua(tmp_path):
     assert mod.lang == "lua", f"Expected language 'lua', got '{mod.lang}'"
 
 
-def test_mod_from_path_valid_cpp(tmp_path):
+def test_mod_from_path_valid_cpp(tmp_path) -> None:
     mod_dir = tmp_path / "MyCppMod"
     mod_dir.mkdir()
     dlls_dir = mod_dir / "dlls"
@@ -37,7 +37,7 @@ def test_mod_from_path_valid_cpp(tmp_path):
     assert mod.lang == "cpp", f"Expected language 'cpp', got '{mod.lang}'"
 
 
-def test_mod_from_path_invalid_no_scripts(tmp_path):
+def test_mod_from_path_invalid_no_scripts(tmp_path) -> None:
     mod_dir = tmp_path / "EmptyMod"
     mod_dir.mkdir()
 
@@ -45,7 +45,7 @@ def test_mod_from_path_invalid_no_scripts(tmp_path):
         UE4SSMod.from_path(mod_dir)
 
 
-def test_mod_from_path_invalid_no_main(tmp_path):
+def test_mod_from_path_invalid_no_main(tmp_path) -> None:
     mod_dir = tmp_path / "NoMainMod"
     mod_dir.mkdir()
     scripts_dir = mod_dir / "scripts"
@@ -56,7 +56,7 @@ def test_mod_from_path_invalid_no_main(tmp_path):
         UE4SSMod.from_path(mod_dir)
 
 
-def test_mod_enable_disable(tmp_path):
+def test_mod_enable_disable(tmp_path) -> None:
     mod_dir = tmp_path / "ToggleMod"
     mod_dir.mkdir()
     scripts_dir = mod_dir / "scripts"
@@ -75,7 +75,7 @@ def test_mod_enable_disable(tmp_path):
     assert not (mod_dir / "enabled.txt").exists(), "enabled.txt should not exist after disable()"
 
 
-def test_mod_disable_not_exists(tmp_path):
+def test_mod_disable_not_exists(tmp_path) -> None:
     mod_dir = tmp_path / "NoFileMod"
     mod_dir.mkdir()
     scripts_dir = mod_dir / "scripts"
@@ -87,7 +87,7 @@ def test_mod_disable_not_exists(tmp_path):
     assert mod.enabled is False
 
 
-def test_mod_override_enabled(tmp_path):
+def test_mod_override_enabled(tmp_path) -> None:
     mod_dir = tmp_path / "OverrideMod"
     mod_dir.mkdir()
     scripts_dir = mod_dir / "scripts"
@@ -98,15 +98,15 @@ def test_mod_override_enabled(tmp_path):
     assert mod.enabled is True
 
 
-def test_mod_from_path_not_directory(tmp_path):
+def test_mod_from_path_not_directory(tmp_path) -> None:
     not_a_dir = tmp_path / "file.txt"
     not_a_dir.touch()
 
     assert UE4SSMod.from_path(not_a_dir) is None
 
 
-def test_mod_equality():
-    path = Path("/tmp/mod")
+def test_mod_equality(tmp_path: Path) -> None:
+    path = tmp_path / "mod"
     mod1 = UE4SSMod(name="Mod", path=path, enabled=True, scripts=[])
     mod2 = UE4SSMod(name="Mod", path=path, enabled=False, scripts=[])
     mod3 = UE4SSMod(name="Other", path=path, enabled=True, scripts=[])
@@ -117,8 +117,9 @@ def test_mod_equality():
     assert hash(mod1) == hash(mod2), "Equal mods should have same hash"
 
 
-def test_pak_mod_from_path(tmp_path):
+def test_pak_mod_from_path(tmp_path) -> None:
     from src.common.mod import PakMod
+
     pak_path = tmp_path / "TestMod.pak"
     pak_path.touch()
 
@@ -135,8 +136,9 @@ def test_pak_mod_from_path(tmp_path):
     assert mod_disabled.path == disabled_path
 
 
-def test_pak_mod_enable_disable(tmp_path):
+def test_pak_mod_enable_disable(tmp_path) -> None:
     from src.common.mod import PakMod
+
     pak_path = tmp_path / "Toggle.pak"
     pak_path.touch()
 
@@ -159,8 +161,9 @@ def test_pak_mod_enable_disable(tmp_path):
     assert mod.path == pak_path
 
 
-def test_pak_mod_enable_disable_idempotent(tmp_path):
+def test_pak_mod_enable_disable_idempotent(tmp_path) -> None:
     from src.common.mod import PakMod
+
     pak_path = tmp_path / "Idem.pak"
     pak_path.touch()
 

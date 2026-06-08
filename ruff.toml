@@ -36,20 +36,23 @@ target-version = "py313"
 [lint]
 preview = true
 
-select = ["E", "F", "B", "I", "S", "PL", "D"]
+select = ["ALL"]
 ignore = [
     "D100", "D101", "D102", "D103", "D104", "D105", "D106", "D107", # Missing docstrings
     "D203", "D211", "D212", "D213", # Docstring conflicts
     "D206", # Tab indentation conflicts
     "S101", # Use of assert
-    "PLR2004", # Magic value in comparison
-    "PLW0717", # Try clause contains too many statements
-    "PLC0415", # import should be at the top-level
-    "PLR6301", # Method could be a function/static
+    "COM812", "ISC001", # Format conflicts
     "E402", # Module level import not at top (needed for mocks in tests)
-    "S108", # Insecure temporary file
-    "E721", "BLE001", "D404", "CPY001", "EM102", "TRY003", "PLR0904", "D205", "TID252", "D200", "S603", "S404", "S602", "TRY301", "C417", "FA100", "EM101", "FURB113", "E741", "UP007", "UP045",
-    "PLR0912"
+    "ANN", # Too many type annotation issues for this pass
+    "ARG", # Unused arguments (often intentional in callbacks)
+    "PLC0415", # Local imports used for lazy loading/avoiding circular deps
+    "PLR6301", # Methods that don't use self (often better as methods for API)
+    "CPY001", # Missing copyright notice
+    "FBT", # Flake8-boolean-trap
+    "C901", # Complex structure
+    "SLF001", # Private member access
+    "PLR0912", # Too many branches
 ]
 extend-select = ["DOC"]
 
