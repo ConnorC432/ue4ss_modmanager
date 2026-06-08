@@ -6,62 +6,68 @@ import pytest
 
 # Mocking customtkinter and PIL before importing the GUI
 class MockCTk:
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         self.main_frame = MagicMock()
         self.search_var = MagicMock()
+        self.search_var.get.return_value = ""
+        self.toggle_all_var = MagicMock()
+        self.toggle_all_var.get.return_value = False
 
-    def title(self, *args):
+    def title(self, *args) -> None:
         pass
 
-    def winfo_screenwidth(self):
+    def winfo_screenwidth(self) -> int:
         return 1000
 
-    def winfo_screenheight(self):
+    def winfo_screenheight(self) -> int:
         return 1000
 
-    def minsize(self, *args):
+    def minsize(self, *args) -> None:
         pass
 
-    def attributes(self, *args):
+    def attributes(self, *args) -> None:
         pass
 
-    def after(self, *args):
+    def after(self, *args) -> None:
         pass
 
-    def center_window(self):
+    def center_window(self) -> None:
         pass
 
-    def iconbitmap(self, *args):
+    def iconbitmap(self, *args) -> None:
         pass
 
-    def pack(self, *args, **kwargs):
+    def wm_iconphoto(self, *args, **kwargs) -> None:
         pass
 
-    def grid(self, *args, **kwargs):
+    def pack(self, *args, **kwargs) -> None:
         pass
 
-    def configure(self, *args, **kwargs):
+    def grid(self, *args, **kwargs) -> None:
         pass
 
-    def update_idletasks(self):
+    def configure(self, *args, **kwargs) -> None:
         pass
 
-    def winfo_reqwidth(self):
+    def update_idletasks(self) -> None:
+        pass
+
+    def winfo_reqwidth(self) -> int:
         return 500
 
-    def winfo_reqheight(self):
+    def winfo_reqheight(self) -> int:
         return 500
 
-    def geometry(self, *args):
+    def geometry(self, *args) -> None:
         pass
 
-    def mainloop(self):
+    def mainloop(self) -> None:
         pass
 
-    def winfo_width(self):
+    def winfo_width(self) -> int:
         return 500
 
-    def winfo_height(self):
+    def winfo_height(self) -> int:
         return 500
 
 
@@ -94,11 +100,13 @@ def mock_mod_manager():
     mod1.name = "Mod1"
     mod1.enabled = True
     mod1.is_native = False
+    mod1.mod_type = "UE4SS"
+    mod1.scripts = []
     manager.mods = [mod1]
     return manager
 
 
-def test_gui_init(mock_mod_manager):
+def test_gui_init(mock_mod_manager) -> None:
     # This might still fail if it calls more stuff in __init__
     # but let's see.
     gui = UE4SSModManagerGUI([mock_mod_manager])
@@ -106,7 +114,7 @@ def test_gui_init(mock_mod_manager):
     assert (id(mock_mod_manager), "Mod1") in gui.initial_mod_states
 
 
-def test_start_gui(mock_mod_manager, monkeypatch):
+def test_start_gui(mock_mod_manager, monkeypatch) -> None:
     mock_gui_instance = MagicMock()
     monkeypatch.setattr("src.common.gui.UE4SSModManagerGUI", lambda *args, **kwargs: mock_gui_instance)
 
@@ -114,35 +122,35 @@ def test_start_gui(mock_mod_manager, monkeypatch):
     mock_gui_instance.mainloop.assert_called_once()
 
 
-def test_gui_save_changes_pak(tmp_path, monkeypatch):
-    from src.common.mod import PakMod
+def test_gui_save_changes_pak(tmp_path, monkeypatch) -> None:
     from src.common.mod_manager import PakModManager
-    
+
     pak_dir = tmp_path / "Paks"
     pak_dir.mkdir()
     pak_path = pak_dir / "Test.pak"
     pak_path.touch()
-    
+
     manager = PakModManager(pak_dir)
     gui = UE4SSModManagerGUI([manager])
-    
+
     # Simulate user unchecking the mod
     # The key is (id(manager), mod_name)
     checkbox_mock = MagicMock()
     checkbox_mock.get.return_value = False
-    gui.mod_checkboxes[(id(manager), "Test.pak")] = checkbox_mock
-    
+    gui.mod_checkboxes[id(manager), "Test.pak"] = checkbox_mock
+
     # Save changes
     gui.save_changes()
-    
+
     # Check if the file was renamed
     assert (pak_dir / "Test.pak.disabled").exists()
     assert not pak_path.exists()
 
 
-def test_gui_import_routing(tmp_path, monkeypatch):
-    from src.common.mod_manager import UE4SSModManager, PakModManager
+def test_gui_import_routing(tmp_path, monkeypatch) -> None:
     import zipfile
+
+    from src.common.mod_manager import PakModManager, UE4SSModManager
 
     ue4ss_dir = tmp_path / "UE4SS"
     ue4ss_dir.mkdir()
@@ -182,10 +190,10 @@ def test_gui_import_routing(tmp_path, monkeypatch):
     ue4ss_manager.import_mod_archive.assert_not_called()
 
 
-def test_gui_import_no_suitable_manager(tmp_path, monkeypatch):
-    from src.common.mod_manager import PakModManager
+def test_gui_import_no_suitable_manager(tmp_path, monkeypatch) -> None:
     import zipfile
-    import tkinter.messagebox
+
+    from src.common.mod_manager import PakModManager
 
     pak_dir = tmp_path / "Paks"
     pak_dir.mkdir()
@@ -203,14 +211,15 @@ def test_gui_import_no_suitable_manager(tmp_path, monkeypatch):
     monkeypatch.setattr("src.common.gui.UE4SSModManagerGUI.show_error", mock_show_error)
 
     gui.import_mod()
-    
+
     mock_show_error.assert_called_once()
     assert "no UE4SS mod manager is active" in mock_show_error.call_args[0][1]
 
 
-def test_gui_import_unrecognized_archive(tmp_path, monkeypatch):
-    from src.common.mod_manager import UE4SSModManager
+def test_gui_import_unrecognized_archive(tmp_path, monkeypatch) -> None:
     import zipfile
+
+    from src.common.mod_manager import UE4SSModManager
 
     ue4ss_dir = tmp_path / "UE4SS"
     ue4ss_dir.mkdir()
@@ -228,6 +237,6 @@ def test_gui_import_unrecognized_archive(tmp_path, monkeypatch):
     monkeypatch.setattr("src.common.gui.UE4SSModManagerGUI.show_error", mock_show_error)
 
     gui.import_mod()
-    
+
     mock_show_error.assert_called_once()
     assert "Could not determine mod type" in mock_show_error.call_args[0][1]

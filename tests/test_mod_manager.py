@@ -49,20 +49,20 @@ def create_tar_gz_mod(path: Path, mod_name: str):
     return tar_path
 
 
-def test_mod_manager_init_valid(ue4ss_structure):
+def test_mod_manager_init_valid(ue4ss_structure) -> None:
     manager = UE4SSModManager(ue4ss_structure)
     assert manager.path == ue4ss_structure, f"Expected path {ue4ss_structure}, got {manager.path}"
     assert len(manager.mods) == 0, f"Expected 0 mods initially, got {len(manager.mods)}"
 
 
-def test_mod_manager_init_invalid(tmp_path):
+def test_mod_manager_init_invalid(tmp_path) -> None:
     invalid_path = tmp_path / "NotADir"
     # No directory created
     with pytest.raises(InvalidModFolderException):
         UE4SSModManager(invalid_path)
 
 
-def test_load_mods(ue4ss_structure):
+def test_load_mods(ue4ss_structure) -> None:
     # Create a mod
     mod1_dir = ue4ss_structure / "Mod1"
     mod1_dir.mkdir()
@@ -74,7 +74,7 @@ def test_load_mods(ue4ss_structure):
     assert manager.mods[0].name == "Mod1", f"Expected mod name 'Mod1', got '{manager.mods[0].name}'"
 
 
-def test_get_enabled_overrides_txt(ue4ss_structure):
+def test_get_enabled_overrides_txt(ue4ss_structure) -> None:
     mod1_dir = ue4ss_structure / "Mod1"
     mod1_dir.mkdir()
     (mod1_dir / "scripts").mkdir()
@@ -89,7 +89,7 @@ def test_get_enabled_overrides_txt(ue4ss_structure):
     assert "Mod2" not in overrides, "Mod2 should NOT be in enabled overrides from mods.txt"
 
 
-def test_get_enabled_overrides_txt_no_colon(ue4ss_structure):
+def test_get_enabled_overrides_txt_no_colon(ue4ss_structure) -> None:
     # Testing branch at line 54 of mod_manager.py
     mods_txt = ue4ss_structure / "mods.txt"
     mods_txt.write_text("Mod11", encoding="utf-8")  # "Mod1" + "1" (enabled)
@@ -99,7 +99,7 @@ def test_get_enabled_overrides_txt_no_colon(ue4ss_structure):
     assert "Mod1" in overrides
 
 
-def test_get_enabled_overrides_json(ue4ss_structure):
+def test_get_enabled_overrides_json(ue4ss_structure) -> None:
     mods_json = ue4ss_structure / "mods.json"
     data = [{"mod_name": "Mod1", "mod_enabled": True}, {"mod_name": "Mod2", "mod_enabled": False}]
     mods_json.write_text(json.dumps(data), encoding="utf-8")
@@ -110,7 +110,7 @@ def test_get_enabled_overrides_json(ue4ss_structure):
     assert "Mod2" not in overrides
 
 
-def test_parse_mods(ue4ss_structure):
+def test_parse_mods(ue4ss_structure) -> None:
     mod1_dir = ue4ss_structure / "Mod1"
     mod1_dir.mkdir()
     (mod1_dir / "scripts").mkdir()
@@ -127,7 +127,7 @@ def test_parse_mods(ue4ss_structure):
     assert not (ue4ss_structure / "mods.txt").exists()
 
 
-def test_load_mods_no_overrides(ue4ss_structure):
+def test_load_mods_no_overrides(ue4ss_structure) -> None:
     # Testing line 86 of mod_manager.py
     mod1_dir = ue4ss_structure / "Mod1"
     mod1_dir.mkdir()
@@ -140,7 +140,7 @@ def test_load_mods_no_overrides(ue4ss_structure):
     assert len(mods) == 1
 
 
-def test_parse_mods_with_existing_files(ue4ss_structure):
+def test_parse_mods_with_existing_files(ue4ss_structure) -> None:
     mod1_dir = ue4ss_structure / "Mod1"
     mod1_dir.mkdir()
     (mod1_dir / "scripts").mkdir()
@@ -156,7 +156,7 @@ def test_parse_mods_with_existing_files(ue4ss_structure):
     assert not (ue4ss_structure / "mods.txt").exists()
 
 
-def test_parse_mods_disabled_branch(ue4ss_structure):
+def test_parse_mods_disabled_branch(ue4ss_structure) -> None:
     # Testing lines 180-181
     mod1_dir = ue4ss_structure / "Mod1"
     mod1_dir.mkdir()
@@ -172,7 +172,7 @@ def test_parse_mods_disabled_branch(ue4ss_structure):
     assert not (mod1_dir / "enabled.txt").exists()
 
 
-def test_load_mods_skips_shared(ue4ss_structure):
+def test_load_mods_skips_shared(ue4ss_structure) -> None:
     shared_dir = ue4ss_structure / "shared"
     shared_dir.mkdir()
     (shared_dir / "scripts").mkdir()
@@ -182,7 +182,7 @@ def test_load_mods_skips_shared(ue4ss_structure):
     assert len(manager.mods) == 0, "The 'shared' folder should be skipped during mod loading"
 
 
-def test_load_mods_with_invalid_mod(ue4ss_structure):
+def test_load_mods_with_invalid_mod(ue4ss_structure) -> None:
     invalid_mod_dir = ue4ss_structure / "InvalidMod"
     invalid_mod_dir.mkdir()
     # No scripts folder or main file
@@ -191,7 +191,7 @@ def test_load_mods_with_invalid_mod(ue4ss_structure):
     assert len(manager.mods) == 0, "Invalid mods should be skipped without crashing the manager"
 
 
-def test_enable_disable_mods(ue4ss_structure):
+def test_enable_disable_mods(ue4ss_structure) -> None:
     mod_dir = ue4ss_structure / "Mod1"
     mod_dir.mkdir()
     (mod_dir / "scripts").mkdir()
@@ -205,7 +205,7 @@ def test_enable_disable_mods(ue4ss_structure):
     assert not (mod_dir / "enabled.txt").exists(), "Mod1 should not have enabled.txt after disable_mods"
 
 
-def test_properties(ue4ss_structure):
+def test_properties(ue4ss_structure) -> None:
     mod1_dir = ue4ss_structure / "Mod1"
     mod1_dir.mkdir()
     (mod1_dir / "scripts").mkdir()
@@ -224,7 +224,7 @@ def test_properties(ue4ss_structure):
     assert "Mod1" in manager.disabled_mods
 
 
-def test_import_zip_success(ue4ss_structure, tmp_path):
+def test_import_zip_success(ue4ss_structure, tmp_path) -> None:
     manager = UE4SSModManager(ue4ss_structure)
     zip_path = create_zip_mod(tmp_path, "NewMod")
 
@@ -236,7 +236,7 @@ def test_import_zip_success(ue4ss_structure, tmp_path):
     assert "NewMod" in manager.all_mods
 
 
-def test_import_nested_zip_success(ue4ss_structure, tmp_path):
+def test_import_nested_zip_success(ue4ss_structure, tmp_path) -> None:
     manager = UE4SSModManager(ue4ss_structure)
     zip_path = create_zip_mod(tmp_path, "NestedMod", nested=True)
 
@@ -248,7 +248,7 @@ def test_import_nested_zip_success(ue4ss_structure, tmp_path):
     assert not (ue4ss_structure / "NestedMod" / "nested").exists()  # Should have flattened
 
 
-def test_import_tar_gz_success(ue4ss_structure, tmp_path):
+def test_import_tar_gz_success(ue4ss_structure, tmp_path) -> None:
     manager = UE4SSModManager(ue4ss_structure)
     tar_path = create_tar_gz_mod(tmp_path, "TarMod")
 
@@ -259,7 +259,7 @@ def test_import_tar_gz_success(ue4ss_structure, tmp_path):
     assert (ue4ss_structure / "TarMod" / "scripts" / "main.lua").exists()
 
 
-def test_import_overwrite_fails_if_false(ue4ss_structure, tmp_path):
+def test_import_overwrite_fails_if_false(ue4ss_structure, tmp_path) -> None:
     manager = UE4SSModManager(ue4ss_structure)
     (ue4ss_structure / "ExistingMod").mkdir()
     zip_path = create_zip_mod(tmp_path, "ExistingMod")
@@ -268,7 +268,7 @@ def test_import_overwrite_fails_if_false(ue4ss_structure, tmp_path):
         manager.import_mod_archive(zip_path, overwrite=False)
 
 
-def test_import_overwrite_success_if_true(ue4ss_structure, tmp_path):
+def test_import_overwrite_success_if_true(ue4ss_structure, tmp_path) -> None:
     manager = UE4SSModManager(ue4ss_structure)
     existing_mod_dir = ue4ss_structure / "ExistingMod"
     existing_mod_dir.mkdir()
@@ -283,7 +283,7 @@ def test_import_overwrite_success_if_true(ue4ss_structure, tmp_path):
     assert (existing_mod_dir / "scripts" / "main.lua").exists()
 
 
-def test_import_invalid_format(ue4ss_structure, tmp_path):
+def test_import_invalid_format(ue4ss_structure, tmp_path) -> None:
     manager = UE4SSModManager(ue4ss_structure)
     invalid_file = tmp_path / "test.txt"
     invalid_file.write_text("not an archive")
@@ -292,22 +292,23 @@ def test_import_invalid_format(ue4ss_structure, tmp_path):
         manager.import_mod_archive(invalid_file)
 
 
-def test_pak_mod_manager_load(tmp_path):
+def test_pak_mod_manager_load(tmp_path) -> None:
     pak_dir = tmp_path / "Paks"
     pak_dir.mkdir()
     (pak_dir / "Mod1.pak").touch()
     (pak_dir / "Mod2.pak.disabled").touch()
     (pak_dir / "not_a_mod.txt").touch()
 
+    expected_mod_count = 2
     manager = PakModManager(pak_dir)
-    assert len(manager.mods) == 2
+    assert len(manager.mods) == expected_mod_count
     assert "Mod1.pak" in manager.all_mods
     assert "Mod2.pak" in manager.all_mods
     assert "Mod1.pak" in manager.enabled_mods
     assert "Mod2.pak" in manager.disabled_mods
 
 
-def test_pak_mod_manager_enable_disable(tmp_path):
+def test_pak_mod_manager_enable_disable(tmp_path) -> None:
     pak_dir = tmp_path / "Paks"
     pak_dir.mkdir()
     pak_path = pak_dir / "Toggle.pak"
@@ -327,7 +328,7 @@ def test_pak_mod_manager_enable_disable(tmp_path):
     assert "Toggle.pak" in manager.enabled_mods
 
 
-def test_pak_mod_manager_import(tmp_path):
+def test_pak_mod_manager_import(tmp_path) -> None:
     pak_dir = tmp_path / "Paks"
     pak_dir.mkdir()
     manager = PakModManager(pak_dir)
@@ -344,7 +345,7 @@ def test_pak_mod_manager_import(tmp_path):
     assert "MyCoolMod.pak" in manager.all_mods
 
 
-def test_pak_mod_manager_import_no_pak(tmp_path):
+def test_pak_mod_manager_import_no_pak(tmp_path) -> None:
     pak_dir = tmp_path / "Paks"
     pak_dir.mkdir()
     manager = PakModManager(pak_dir)
@@ -354,11 +355,11 @@ def test_pak_mod_manager_import_no_pak(tmp_path):
     with zipfile.ZipFile(archive_path, "w") as z:
         z.writestr("readme.txt", "no pak here")
 
-    with pytest.raises(ValueError, match="No .pak files found"):
+    with pytest.raises(ValueError, match=r"No \.pak files found"):
         manager.import_mod_archive(archive_path)
 
 
-def test_pak_mod_manager_import_overwrite(tmp_path):
+def test_pak_mod_manager_import_overwrite(tmp_path) -> None:
     pak_dir = tmp_path / "Paks"
     pak_dir.mkdir()
     (pak_dir / "Overwrite.pak").write_text("old")
@@ -378,7 +379,7 @@ def test_pak_mod_manager_import_overwrite(tmp_path):
     assert (pak_dir / "Overwrite.pak").read_text() == "new"
 
 
-def test_import_multiple_paks_success(tmp_path):
+def test_import_multiple_paks_success(tmp_path) -> None:
     pak_dir = tmp_path / "Paks"
     pak_dir.mkdir()
     manager = PakModManager(pak_dir)
@@ -395,7 +396,7 @@ def test_import_multiple_paks_success(tmp_path):
     assert (pak_dir / "Mod2.pak").exists()
 
 
-def test_import_nested_paks_success(tmp_path):
+def test_import_nested_paks_success(tmp_path) -> None:
     pak_dir = tmp_path / "Paks"
     pak_dir.mkdir()
     manager = PakModManager(pak_dir)
@@ -410,7 +411,7 @@ def test_import_nested_paks_success(tmp_path):
     assert (pak_dir / "Nested.pak").exists()
 
 
-def test_import_mixed_content_ue4ss(ue4ss_structure, tmp_path):
+def test_import_mixed_content_ue4ss(ue4ss_structure, tmp_path) -> None:
     # Testing that UE4SS manager ignores non-UE4SS files but imports the mod
     manager = UE4SSModManager(ue4ss_structure)
 

@@ -1,7 +1,7 @@
 import os
 import shutil
 from abc import ABC, abstractmethod
-from json import dumps, load
+from json import load
 from pathlib import Path
 
 from loguru import logger
@@ -20,7 +20,6 @@ class ModManager(ABC):
     @abstractmethod
     def load_mods(self) -> list[Mod]:
         """Loads all mods from the specified path."""
-        pass
 
     def enable_mods(self, mod_names: list[str]) -> None:
         """Enables the specified mods."""
@@ -46,7 +45,6 @@ class ModManager(ABC):
         Returns:
             The name of the imported mod.
         """
-        pass
 
     @property
     def enabled_mods(self) -> list[str]:
@@ -88,7 +86,8 @@ class UE4SSModManager(ModManager):
             InvalidModFolderException: If the path is not a directory.
         """
         if not path.is_dir() or not path.exists():
-            raise InvalidModFolderException(f"Path {path} is not a directory.")
+            msg = f"Path {path} is not a directory."
+            raise InvalidModFolderException(msg)
 
         super().__init__(path)
 
@@ -132,8 +131,8 @@ class UE4SSModManager(ModManager):
                     if mod:
                         mod.is_native = mod.name in self.NATIVE_MODS
                         output.append(mod)
-                except Exception:
-                    logger.exception(f"Failed to load mod from {mod_path}. This mod will be skipped.")
+                except (ValueError, OSError) as e:
+                    logger.exception(f"Failed to load mod from {mod_path}: {e}. This mod will be skipped.")
                     continue
 
         return output
@@ -178,8 +177,9 @@ class UE4SSModManager(ModManager):
             supported_extensions.extend(extensions)
 
         if not any(archive_path.name.lower().endswith(ext) for ext in supported_extensions):
+            msg = f"Unsupported archive format: {archive_path.suffix}. Supported: {', '.join(supported_extensions)}"
             raise ValueError(
-                f"Unsupported archive format: {archive_path.suffix}. Supported: {', '.join(supported_extensions)}"
+                msg
             )
 
         mod_name = archive_path.stem
@@ -194,7 +194,8 @@ class UE4SSModManager(ModManager):
         target_dir = self.path / mod_name
 
         if target_dir.exists() and not overwrite:
-            raise ValueError(f"Mod '{mod_name}' already exists.")
+            msg = f"Mod '{mod_name}' already exists."
+            raise ValueError(msg)
 
         import tempfile
 
@@ -239,19 +240,34 @@ class PakModManager(ModManager):
     """Manages the loading and enabling/disabling of PAK mods."""
 
     def load_mods(self) -> list[PakMod]:
-        """Loads all PAK mods from the specified path."""
-        output = []
+        """Loads all PAK mods from the specified path.
+
+        Returns:
+            A list of PakMod objects.
+        """
         if not self.path.exists():
-            return output
+            return []
 
-        for item in self.path.iterdir():
-            if item.is_file() and (item.name.lower().endswith(".pak") or item.name.lower().endswith(".pak.disabled")):
-                output.append(PakMod.from_path(item))
-
-        return output
+        return [
+            PakMod.from_path(item)
+            for item in self.path.iterdir()
+            if item.is_file()
+            and (item.name.lower().endswith(".pak") or item.name.lower().endswith(".pak.disabled"))
+        ]
 
     def import_mod_archive(self, archive_path: Path, overwrite: bool = False) -> str:
-        """Imports a PAK mod from an archive file."""
+        """Imports a PAK mod from an archive file.
+
+        Args:
+            archive_path: Path to the mod archive.
+            overwrite: Whether to overwrite existing files.
+
+        Returns:
+            The name of the imported mod.
+
+        Raises:
+            ValueError: If no .pak files are found or if a file already exists and overwrite is False.
+        """
         import tempfile
 
         mod_name = archive_path.stem
@@ -268,17 +284,17 @@ class PakModManager(ModManager):
 
             pak_files = []
             for root, _, files in os.walk(temp_dir):
-                for file in files:
-                    if file.lower().endswith(".pak"):
-                        pak_files.append(Path(root) / file)
+                pak_files.extend(Path(root) / file for file in files if file.lower().endswith(".pak"))
 
             if not pak_files:
-                raise ValueError("No .pak files found in the archive.")
+                msg = "No .pak files found in the archive."
+                raise ValueError(msg)
 
             for pak_file in pak_files:
                 target_path = self.path / pak_file.name
                 if target_path.exists() and not overwrite:
-                    raise ValueError(f"Mod file '{pak_file.name}' already exists.")
+                    msg = f"Mod file '{pak_file.name}' already exists."
+                    raise ValueError(msg)
 
             for pak_file in pak_files:
                 target_path = self.path / pak_file.name
