@@ -23,7 +23,6 @@ jobs:
 
   lint:
     name: Lint on ${{ matrix.os }}
-    if: ${{ needs.check-tag.outputs.version_tag != '' }}
     runs-on: ${{ matrix.os }}
 
     strategy:
