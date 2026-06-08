@@ -43,7 +43,7 @@ class UE4SSModManagerGUI(ctk.CTk):
         self._create_search_filter()
         self._create_controls()
         self._create_mod_list()
-        self._create_save_options()
+        self._create_save_section()
         self._create_status_bar()
 
         self.populate_mod_list()
@@ -209,61 +209,19 @@ class UE4SSModManagerGUI(ctk.CTk):
         """Create the scrollable mod list area."""
         self.mod_list_frame = ctk.CTkScrollableFrame(self.main_frame)
         self.mod_list_frame.pack(fill="both", expand=True, padx=10, pady=8)
-        self.separator2 = ctk.CTkFrame(self.main_frame, height=1, fg_color="gray30")
-        self.separator2.pack(fill="x", padx=10, pady=3)
 
-    def _create_save_options(self) -> None:
-        """Create the save options section."""
-        self.save_options_frame = ctk.CTkFrame(self.main_frame)
-        self.save_options_frame.pack(fill="x", padx=10, pady=(8, 0))
-
-        self.save_enabled_txt_var = ctk.BooleanVar(value=True)
-        self.save_enabled_txt = ctk.CTkSwitch(
-            self.save_options_frame,
-            text="Save enabled.txt",
-            variable=self.save_enabled_txt_var,
-            onvalue=True,
-            offvalue=False,
-            command=self.update_save_button_state,
-            width=24,
-        )
-        self.save_enabled_txt.pack(side="left", padx=10, pady=8)
-
-        self.save_mods_json_var = ctk.BooleanVar(value=False)
-        self.save_mods_json = ctk.CTkSwitch(
-            self.save_options_frame,
-            text="Save mods.json",
-            variable=self.save_mods_json_var,
-            onvalue=True,
-            offvalue=False,
-            command=lambda: self.handle_save_option_change(self.save_mods_json_var),
-            width=24,
-        )
-        self.save_mods_json.pack(side="left", padx=10, pady=8)
-
-        self.save_mods_txt_var = ctk.BooleanVar(value=False)
-        self.save_mods_txt = ctk.CTkSwitch(
-            self.save_options_frame,
-            text="Save mods.txt",
-            variable=self.save_mods_txt_var,
-            onvalue=True,
-            offvalue=False,
-            command=lambda: self.handle_save_option_change(self.save_mods_txt_var),
-            width=24,
-        )
-        self.save_mods_txt.pack(side="left", padx=10, pady=8)
-
-        self.spacer = ctk.CTkLabel(self.save_options_frame, text="")
-        self.spacer.pack(side="left", fill="x", expand=True)
-
+    def _create_save_section(self) -> None:
+        """Create the save section."""
         self.save_button = ctk.CTkButton(
-            self.save_options_frame,
+            self.main_frame,
             text="Save Changes",
             command=self.save_changes,
-            width=120,
+            width=200,
+            height=40,
             state="disabled",
+            font=ctk.CTkFont(size=14, weight="bold"),
         )
-        self.save_button.pack(side="right", padx=10, pady=8)
+        self.save_button.pack(pady=(10, 5), anchor="center")
 
     def _create_status_bar(self) -> None:
         """Create the status bar at the bottom."""
@@ -290,11 +248,8 @@ class UE4SSModManagerGUI(ctk.CTk):
             self.populate_mod_list()
 
     def update_save_button_state(self) -> None:
-        """Update the save button state based on save options."""
-        if (
-            not (self.save_enabled_txt_var.get() or self.save_mods_json_var.get() or self.save_mods_txt_var.get())
-            or self.initial_mod_states == self.get_mod_status()
-        ):
+        """Update the save button state."""
+        if self.initial_mod_states == self.get_mod_status():
             self.save_button.configure(state="disabled")
         else:
             self.save_button.configure(state="normal")
@@ -387,19 +342,6 @@ class UE4SSModManagerGUI(ctk.CTk):
             logger.exception(f"Error populating mod list: {e}")
             self.show_error("Error populating mod list", str(e))
 
-    def handle_save_option_change(self, var: ctk.BooleanVar) -> None:
-        """Handle changes to save options with warnings."""
-        if var.get():
-            self.show_warning(
-                "Warning",
-                "Are you absolutely sure about writing to these files? "
-                "This can potentially break your UE4SS installation.",
-                lambda: None,  # Do nothing on OK
-                lambda: var.set(False),  # Reset on Cancel
-            )
-
-        self.update_save_button_state()
-
     def reset_mods(self) -> None:
         """Reset mods to their initial states when the app was launched."""
         try:
@@ -489,12 +431,7 @@ class UE4SSModManagerGUI(ctk.CTk):
                         updated_mods.append(mod)
 
                 if isinstance(manager, UE4SSModManager):
-                    manager.parse_mods(
-                        mods=updated_mods,
-                        save_enabled_txt=self.save_enabled_txt_var.get(),
-                        save_mods_json=self.save_mods_json_var.get(),
-                        save_mods_txt=self.save_mods_txt_var.get(),
-                    )
+                    manager.parse_mods(mods=updated_mods)
                 else:
                     for mod in updated_mods:
                         if mod.enabled:

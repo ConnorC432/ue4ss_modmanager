@@ -138,74 +138,23 @@ class UE4SSModManager(ModManager):
 
         return output
 
-    def _write_to_mods_json(self, mods: list[UE4SSMod]) -> None:
-        """
-        Writes the enabled mods to the mods.json file.
-
-        Args:
-            mods: A list of UE4SSMod objects to write to the mods.json file.
-        """
-        output = [{"mod_name": mod.name, "mod_enabled": mod.enabled} for mod in mods if mod.enabled]
-        json_path = self.path / "mods.json"
-
-        if json_path.exists():
-            json_path.unlink()
-
-        with Path.open(json_path, "w", encoding="utf-8") as f:
-            f.write(dumps(output, indent=4, ensure_ascii=False))
-            logger.debug(f"Enabled mods written to {json_path}")
-
-    def _write_to_mods_txt(self, mods: list[UE4SSMod]) -> None:
-        """
-        Writes the enabled mods to the mods.txt file.
-
-        Args:
-            mods: A list of UE4SSMod objects to write to the mods.txt file.
-        """
-        output = [f"{mod.name} : 1\n" for mod in mods if mod.enabled]
-        txt_path = self.path / "mods.txt"
-
-        if txt_path.exists():
-            txt_path.unlink()
-
-        with Path.open(txt_path, "w", encoding="utf-8") as f:
-            f.writelines(output)
-            logger.debug(f"Enabled mods written to {txt_path}")
-
-    def parse_mods(
-        self,
-        mods: list[UE4SSMod],
-        *,
-        save_enabled_txt: bool = True,
-        save_mods_json: bool = True,
-        save_mods_txt: bool = True,
-    ) -> None:
+    def parse_mods(self, mods: list[UE4SSMod]) -> None:
         """
         Parses the mods and sets their enabled status.
 
         Args:
             mods: A list of UE4SSMod objects to parse.
-            save_enabled_txt: Whether to save the enabled status to the enabled.txt files
-            save_mods_json: Whether to save the enabled status to the mods.json file
-            save_mods_txt: Whether to save the enabled status to the mods.txt file
         """
         enabled_mods = [mod for mod in mods if mod.enabled]
         disabled_mods = [mod for mod in mods if not mod.enabled]
 
-        if save_mods_json:
-            self._write_to_mods_json(enabled_mods)
+        if enabled_mods:
+            for mod in enabled_mods:
+                mod.enable()
 
-        if save_mods_txt:
-            self._write_to_mods_txt(enabled_mods)
-
-        if save_enabled_txt:
-            if enabled_mods:
-                for mod in enabled_mods:
-                    mod.enable()
-
-            if disabled_mods:
-                for mod in disabled_mods:
-                    mod.disable()
+        if disabled_mods:
+            for mod in disabled_mods:
+                mod.disable()
 
         logger.debug(f"Parsed {len(mods)} mods.")
 

@@ -120,14 +120,11 @@ def test_parse_mods(ue4ss_structure):
     mod = manager.mods[0]
     mod.enabled = True
 
-    manager.parse_mods([mod], save_enabled_txt=True, save_mods_json=True, save_mods_txt=True)
+    manager.parse_mods([mod])
 
     assert (mod1_dir / "enabled.txt").exists()
-    assert (ue4ss_structure / "mods.json").exists()
-    assert (ue4ss_structure / "mods.txt").exists()
-
-    # Check mods.txt content
-    assert "Mod1 : 1" in (ue4ss_structure / "mods.txt").read_text(), "Mod1 should be enabled in mods.txt"
+    assert not (ue4ss_structure / "mods.json").exists()
+    assert not (ue4ss_structure / "mods.txt").exists()
 
 
 def test_load_mods_no_overrides(ue4ss_structure):
@@ -149,17 +146,14 @@ def test_parse_mods_with_existing_files(ue4ss_structure):
     (mod1_dir / "scripts").mkdir()
     (mod1_dir / "scripts" / "main.lua").touch()
 
-    # Pre-create files to test unlinking (lines 125, 142)
-    (ue4ss_structure / "mods.json").write_text("[]", encoding="utf-8")
-    (ue4ss_structure / "mods.txt").touch()
-
     manager = UE4SSModManager(ue4ss_structure)
     mod = manager.mods[0]
     mod.enabled = True
 
     manager.parse_mods([mod])
-    assert (ue4ss_structure / "mods.json").exists()
-    assert (ue4ss_structure / "mods.txt").exists()
+    assert (mod1_dir / "enabled.txt").exists()
+    assert not (ue4ss_structure / "mods.json").exists()
+    assert not (ue4ss_structure / "mods.txt").exists()
 
 
 def test_parse_mods_disabled_branch(ue4ss_structure):
@@ -174,7 +168,7 @@ def test_parse_mods_disabled_branch(ue4ss_structure):
     mod = manager.mods[0]
     mod.enabled = False  # Set to disabled
 
-    manager.parse_mods([mod], save_enabled_txt=True)
+    manager.parse_mods([mod])
     assert not (mod1_dir / "enabled.txt").exists()
 
 
