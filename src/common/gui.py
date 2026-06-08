@@ -31,7 +31,6 @@ class UE4SSModManagerGUI(ctk.CTk):
                 self.initial_mod_states[(id(manager), mod.name)] = mod.enabled
 
         self.mod_checkboxes = {}  # (manager_id, mod_name) -> checkbox
-        self.show_native_warning_shown = False
 
         self._setup_window(icon_path)
         self._setup_theme()
@@ -149,20 +148,8 @@ class UE4SSModManagerGUI(ctk.CTk):
             self.header_frame,
             placeholder_text="Search mods...",
             textvariable=self.search_var,
-            width=200,
         )
-        self.search_entry.pack(side="left", padx=10, pady=5)
-
-        self.show_native_mods_var = ctk.BooleanVar(value=False)
-        self.show_native_switch = ctk.CTkSwitch(
-            self.header_frame,
-            text="Show Native Mods",
-            variable=self.show_native_mods_var,
-            onvalue=True,
-            offvalue=False,
-            command=self.toggle_native_mods_visibility,
-        )
-        self.show_native_switch.pack(side="right", padx=10, pady=5)
+        self.search_entry.pack(side="left", fill="x", expand=True, padx=10, pady=5)
 
     def _create_controls(self) -> None:
         """Create the control buttons section."""
@@ -233,20 +220,6 @@ class UE4SSModManagerGUI(ctk.CTk):
         )
         self.status_bar.pack(pady=(8, 0), anchor="w")
 
-    def toggle_native_mods_visibility(self) -> None:
-        """Toggle visibility of native mods with a warning."""
-        if self.show_native_mods_var.get() and not self.show_native_warning_shown:
-            self.show_warning(
-                "Warning",
-                "You should be absolutely sure about toggling UE4SS native mods. "
-                "Disabling essential native mods may break UE4SS functionality.",
-                self.populate_mod_list,
-                lambda: self.show_native_mods_var.set(False),
-            )
-            self.show_native_warning_shown = True
-        else:
-            self.populate_mod_list()
-
     def update_save_button_state(self) -> None:
         """Update the save button state."""
         if self.initial_mod_states == self.get_mod_status():
@@ -291,8 +264,6 @@ class UE4SSModManagerGUI(ctk.CTk):
 
             for manager, mod in all_mods_with_managers:
                 is_ue4ss = isinstance(mod, UE4SSMod)
-                if is_ue4ss and not self.show_native_mods_var.get() and mod.is_native:
-                    continue
 
                 # Filter based on search text
                 search_text = self.search_var.get().lower()
@@ -314,7 +285,7 @@ class UE4SSModManagerGUI(ctk.CTk):
 
                 checkbox = ctk.CTkCheckBox(
                     frame,
-                    text=f"{'[NATIVE] ' if is_ue4ss and mod.is_native else ''}{mod.name}",
+                    text=f"{mod.name}",
                     variable=ctk.BooleanVar(value=mod.enabled),
                     command=self.update_save_button_state,
                     onvalue=True,
@@ -491,27 +462,27 @@ class UE4SSModManagerGUI(ctk.CTk):
 
         try:
             archive_path = Path(file_path)
-            
+
             # Detect mod type by looking into the archive
             manager = None
             with tempfile.TemporaryDirectory() as temp_dir:
                 shutil.unpack_archive(str(archive_path), extract_dir=temp_dir)
-                
+
                 is_ue4ss = False
                 is_pak = False
-                
+
                 for root, dirs, files in os.walk(temp_dir):
                     if "scripts" in [d.lower() for d in dirs] or "dlls" in [d.lower() for d in dirs]:
                         is_ue4ss = True
                         break
                     if any(f.lower().endswith(".pak") for f in files):
                         is_pak = True
-                
+
                 if is_ue4ss:
                     manager = next((m for m in self.mod_managers if isinstance(m, UE4SSModManager)), None)
                 elif is_pak:
                     manager = next((m for m in self.mod_managers if isinstance(m, PakModManager)), None)
-                
+
                 if not manager:
                     # Fallback or error
                     if is_ue4ss:
@@ -529,7 +500,7 @@ class UE4SSModManagerGUI(ctk.CTk):
                 mod_name = archive_path.name[:-8]
             elif archive_path.name.lower().endswith(".tar.xz"):
                 mod_name = archive_path.name[:-7]
-            
+
             def do_import(overwrite: bool = False) -> None:
                 try:
                     imported_mod_name = manager.import_mod_archive(archive_path, overwrite=overwrite)
