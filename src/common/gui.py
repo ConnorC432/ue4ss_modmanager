@@ -1,5 +1,6 @@
 import os
 import sys
+import threading
 from pathlib import Path
 from tkinter import filedialog
 
@@ -31,6 +32,9 @@ class UE4SSModManagerGUI(ctk.CTk):
                 self.initial_mod_states[id(manager), mod.name] = mod.enabled
 
         self.mod_checkboxes = {}  # (manager_id, mod_name) -> checkbox
+        self._is_saving = False
+        self._spinner_frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
+        self._spinner_idx = 0
 
         self._setup_window(icon_path)
         self._setup_theme()
@@ -260,6 +264,9 @@ class UE4SSModManagerGUI(ctk.CTk):
 
     def update_save_button_state(self) -> None:
         """Update the save button state."""
+        if self._is_saving:
+            return
+
         if self.initial_mod_states == self.get_mod_status():
             self.save_button.configure(state="disabled")
         else:
@@ -324,6 +331,19 @@ class UE4SSModManagerGUI(ctk.CTk):
                 width=24,
             )
             checkbox.pack(side="left", padx=10, pady=5)
+
+            # Remove button
+            remove_button = ctk.CTkButton(
+                frame,
+                text="Remove",
+                width=60,
+                fg_color="transparent",
+                border_width=1,
+                text_color=("gray10", "gray90"),
+                hover_color=("gray70", "gray30"),
+                command=lambda m=manager, mod_obj=mod: self.remove_mod_gui(m, mod_obj),
+            )
+            remove_button.pack(side="right", padx=5, pady=5)
 
             if is_ue4ss:
                 script_count = ctk.CTkLabel(
@@ -408,6 +428,41 @@ class UE4SSModManagerGUI(ctk.CTk):
 
     def save_changes(self) -> None:
         """Save the changes to the mods."""
+        if self._is_saving:
+            return
+
+        self._is_saving = True
+        self.save_button.configure(state="disabled")
+        self._animate_spinner()
+
+        # Run the save operation in a separate thread to keep the GUI responsive
+        threading.Thread(target=self._save_changes_thread, daemon=True).start()
+
+    def _animate_spinner(self) -> None:
+        """Update the spinner animation on the save button."""
+        if not self._is_saving:
+            self.save_button.configure(text="Save Changes")
+            return
+
+        spinner_char = self._spinner_frames[self._spinner_idx]
+        self.save_button.configure(text=f"{spinner_char} Saving...")
+        self._spinner_idx = (self._spinner_idx + 1) % len(self._spinner_frames)
+        self.after(100, self._animate_spinner)
+
+    def _save_changes_thread(self) -> None:
+        """Background thread for saving changes."""
+        try:
+            self._perform_save()
+            # Update GUI from the main thread
+            self.after(0, self._save_complete)
+        except Exception as e:  # noqa: BLE001
+            logger.exception("Failed to save changes")
+            error_msg = str(e)
+            self.after(0, lambda msg=error_msg: self.show_error("Save Error", f"Failed to save changes: {msg}"))
+            self.after(0, self._save_complete)
+
+    def _perform_save(self) -> None:
+        """Perform the actual save logic."""
         for manager in self.mod_managers:
             updated_mods = []
             for mod in manager.mods:
@@ -425,6 +480,9 @@ class UE4SSModManagerGUI(ctk.CTk):
                     else:
                         mod.disable()
 
+    def _save_complete(self) -> None:
+        """Update GUI after saving is complete."""
+        self._is_saving = False
         self.status_bar.configure(text="Changes saved.")
         self.populate_mod_list()
         self.initial_mod_states = self.get_mod_status()
@@ -445,6 +503,12 @@ class UE4SSModManagerGUI(ctk.CTk):
     def filter_mods(self) -> None:
         """Filter mods based on search text."""
         self.populate_mod_list()
+
+    def remove_mod_gui(self, manager: ModManager, mod: UE4SSMod) -> None:
+        """Remove a mod from the manager and update the GUI."""
+        manager.remove_mod(mod.name)
+        self.refresh_mods()
+        self.status_bar.configure(text=f"Mod {mod.name} removed")
 
     def _detect_mod_type(self, archive_path: Path) -> ModManager:
         """Detect mod type by looking into the archive and return the appropriate manager.

@@ -33,6 +33,14 @@ class ModManager(ABC):
             if mod.name in mod_names:
                 mod.disable()
 
+    def remove_mod(self, mod_name: str) -> None:
+        """Removes the specified mod."""
+        for mod in self.mods:
+            if mod.name == mod_name:
+                mod.remove()
+                self.mods.remove(mod)
+                break
+
     @abstractmethod
     def import_mod_archive(self, archive_path: Path, overwrite: bool = False) -> str:
         """
