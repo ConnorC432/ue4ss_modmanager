@@ -9,6 +9,7 @@ A simple GUI application for managing [UE4SS](https://github.com/UE4SS-RE/RE-UE4
 - Toggle all mods on/off with one button
 - Modern dark mode UI
 - Simple, intuitive interface
+- Remove mods with a single click
 
 ## Pre-Installation
 
@@ -27,4 +28,5 @@ A simple GUI application for managing [UE4SS](https://github.com/UE4SS-RE/RE-UE4
 2. Mods in your `UE4SS/Mods` folder and `Content/Paks` folder are automatically detected
 3. Enable/disable mods by checking/unchecking their boxes
 4. Use "Toggle All" to enable/disable all mods at once
+5. Use "Import Mod" to import mods from an archive
 6. Click "Save Changes" to apply your configuration
