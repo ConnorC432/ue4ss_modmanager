@@ -76,7 +76,7 @@ jobs:
 
   build:
     name: Build on ${{ matrix.os }}
-    needs: [lint, test]
+    needs: [check-tag, lint, test]
     if: ${{ needs.check-tag.outputs.version_tag != '' }}
     runs-on: ${{ matrix.os }}
 
