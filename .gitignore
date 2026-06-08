@@ -175,4 +175,8 @@ cython_debug/
 .pypirc
 
 # UE4SS/Mods
-UE4SS/
+Binaries/
+Content/
+
+# Test mod archives
+/*.zip

@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from src.common.exceptions import InvalidModFolderException
-from src.common.mod_manager import UE4SSModManager
+from src.common.mod_manager import PakModManager, UE4SSModManager
 
 
 @pytest.fixture
@@ -56,8 +56,8 @@ def test_mod_manager_init_valid(ue4ss_structure):
 
 
 def test_mod_manager_init_invalid(tmp_path):
-    invalid_path = tmp_path / "NotMods"
-    invalid_path.mkdir()
+    invalid_path = tmp_path / "NotADir"
+    # No directory created
     with pytest.raises(InvalidModFolderException):
         UE4SSModManager(invalid_path)
 
@@ -296,3 +296,139 @@ def test_import_invalid_format(ue4ss_structure, tmp_path):
 
     with pytest.raises(ValueError, match="Unsupported archive format"):
         manager.import_mod_archive(invalid_file)
+
+
+def test_pak_mod_manager_load(tmp_path):
+    pak_dir = tmp_path / "Paks"
+    pak_dir.mkdir()
+    (pak_dir / "Mod1.pak").touch()
+    (pak_dir / "Mod2.pak.disabled").touch()
+    (pak_dir / "not_a_mod.txt").touch()
+
+    manager = PakModManager(pak_dir)
+    assert len(manager.mods) == 2
+    assert "Mod1.pak" in manager.all_mods
+    assert "Mod2.pak" in manager.all_mods
+    assert "Mod1.pak" in manager.enabled_mods
+    assert "Mod2.pak" in manager.disabled_mods
+
+
+def test_pak_mod_manager_enable_disable(tmp_path):
+    pak_dir = tmp_path / "Paks"
+    pak_dir.mkdir()
+    pak_path = pak_dir / "Toggle.pak"
+    pak_path.touch()
+
+    manager = PakModManager(pak_dir)
+    assert "Toggle.pak" in manager.enabled_mods
+
+    manager.disable_mods(["Toggle.pak"])
+    assert (pak_dir / "Toggle.pak.disabled").exists()
+    assert not pak_path.exists()
+    assert "Toggle.pak" in manager.disabled_mods
+
+    manager.enable_mods(["Toggle.pak"])
+    assert pak_path.exists()
+    assert not (pak_dir / "Toggle.pak.disabled").exists()
+    assert "Toggle.pak" in manager.enabled_mods
+
+
+def test_pak_mod_manager_import(tmp_path):
+    pak_dir = tmp_path / "Paks"
+    pak_dir.mkdir()
+    manager = PakModManager(pak_dir)
+
+    import zipfile
+    archive_path = tmp_path / "PakMod.zip"
+    with zipfile.ZipFile(archive_path, "w") as z:
+        z.writestr("MyCoolMod.pak", "fake pak content")
+
+    imported_name = manager.import_mod_archive(archive_path)
+
+    assert imported_name == "PakMod"
+    assert (pak_dir / "MyCoolMod.pak").exists()
+    assert "MyCoolMod.pak" in manager.all_mods
+
+
+def test_pak_mod_manager_import_no_pak(tmp_path):
+    pak_dir = tmp_path / "Paks"
+    pak_dir.mkdir()
+    manager = PakModManager(pak_dir)
+
+    import zipfile
+    archive_path = tmp_path / "NoPak.zip"
+    with zipfile.ZipFile(archive_path, "w") as z:
+        z.writestr("readme.txt", "no pak here")
+
+    with pytest.raises(ValueError, match="No .pak files found"):
+        manager.import_mod_archive(archive_path)
+
+
+def test_pak_mod_manager_import_overwrite(tmp_path):
+    pak_dir = tmp_path / "Paks"
+    pak_dir.mkdir()
+    (pak_dir / "Overwrite.pak").write_text("old")
+    manager = PakModManager(pak_dir)
+
+    import zipfile
+    archive_path = tmp_path / "New.zip"
+    with zipfile.ZipFile(archive_path, "w") as z:
+        z.writestr("Overwrite.pak", "new")
+
+    # Should fail without overwrite
+    with pytest.raises(ValueError, match="already exists"):
+        manager.import_mod_archive(archive_path, overwrite=False)
+
+    # Should succeed with overwrite
+    manager.import_mod_archive(archive_path, overwrite=True)
+    assert (pak_dir / "Overwrite.pak").read_text() == "new"
+
+
+def test_import_multiple_paks_success(tmp_path):
+    pak_dir = tmp_path / "Paks"
+    pak_dir.mkdir()
+    manager = PakModManager(pak_dir)
+
+    import zipfile
+    archive_path = tmp_path / "MultiPak.zip"
+    with zipfile.ZipFile(archive_path, "w") as z:
+        z.writestr("Mod1.pak", "data1")
+        z.writestr("Mod2.pak", "data2")
+
+    imported_name = manager.import_mod_archive(archive_path)
+    assert imported_name == "MultiPak"
+    assert (pak_dir / "Mod1.pak").exists()
+    assert (pak_dir / "Mod2.pak").exists()
+
+
+def test_import_nested_paks_success(tmp_path):
+    pak_dir = tmp_path / "Paks"
+    pak_dir.mkdir()
+    manager = PakModManager(pak_dir)
+
+    import zipfile
+    archive_path = tmp_path / "NestedPak.zip"
+    with zipfile.ZipFile(archive_path, "w") as z:
+        z.writestr("Folder/Subfolder/Nested.pak", "data")
+
+    imported_name = manager.import_mod_archive(archive_path)
+    assert imported_name == "NestedPak"
+    assert (pak_dir / "Nested.pak").exists()
+
+
+def test_import_mixed_content_ue4ss(ue4ss_structure, tmp_path):
+    # Testing that UE4SS manager ignores non-UE4SS files but imports the mod
+    manager = UE4SSModManager(ue4ss_structure)
+
+    import zipfile
+    archive_path = tmp_path / "MixedMod.zip"
+    with zipfile.ZipFile(archive_path, "w") as z:
+        z.writestr("MyMod/scripts/main.lua", "-- lua")
+        z.writestr("MyMod/random.txt", "random")
+        z.writestr("readme.md", "info")
+
+    imported_name = manager.import_mod_archive(archive_path)
+    assert imported_name == "MixedMod"
+    assert (ue4ss_structure / "MixedMod").exists()
+    assert (ue4ss_structure / "MixedMod" / "scripts" / "main.lua").exists()
+    assert (ue4ss_structure / "MixedMod" / "random.txt").exists()

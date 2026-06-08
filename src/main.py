@@ -6,43 +6,65 @@ from loguru import logger
 
 from src.common.exceptions import InvalidModException, InvalidModFolderException
 from src.common.gui import start_gui
-from src.common.mod_manager import UE4SSModManager
+from src.common.mod_manager import UE4SSModManager, PakModManager
 
 
-def find_mods_folder(base_path: Path | None = None) -> Path | None:
+def find_game_root(base_path: Path | None = None) -> Path | None:
     """
-    Find the mods folder path.
+    Find the game root folder path.
 
     Args:
         base_path: The base path to start searching from. If None, it uses the application root.
 
     Returns:
-        The path to the mods folder or None if not found.
+        The path to the game root folder or None if not found.
     """
     if base_path is None:
         base_path = Path(sys.executable).parent if getattr(sys, "frozen", False) else Path(__file__).parent.parent
 
     current = base_path
     for _ in range(5):  # Check current and 4 parents
-        # Check if current is the Mods folder
-        if current.name.upper() == "MODS" and current.parent.name.upper() == "UE4SS":
+        # Game root usually contains "Binaries" and "Content"
+        if (current / "Binaries").is_dir() and (current / "Content").is_dir():
             return current
 
-        # Check if current/Mods is the Mods folder
-        mods_path = current / "Mods"
-        if mods_path.is_dir() and mods_path.parent.name.upper() == "UE4SS":
-            return mods_path
-
-        # Check if current/UE4SS/Mods is the Mods folder
-        ue4ss_mods_path = current / "UE4SS" / "Mods"
-        if ue4ss_mods_path.is_dir():
-            return ue4ss_mods_path
+        # Check if we are inside Binaries/Win64/UE4SS/Mods or Binaries/Win64/ue4ss/Mods
+        if current.name.upper() == "MODS" and current.parent.name.upper() in ("UE4SS", "UE4SS"):
+            if current.parent.parent.name.upper() == "WIN64" and current.parent.parent.parent.name.upper() == "BINARIES":
+                potential_root = current.parent.parent.parent.parent
+                if (potential_root / "Binaries").is_dir() and (potential_root / "Content").is_dir():
+                    return potential_root
 
         if current.parent == current:  # Root reached
             break
         current = current.parent
 
+    # Fallback to current directory if it looks like a game root
+    if (base_path / "Binaries").is_dir() and (base_path / "Content").is_dir():
+        return base_path
+
     return None
+
+
+def find_mods_folder(base_path: Path | None = None) -> Path | None:
+    """
+    Find the UE4SS mods folder.
+
+    Args:
+        base_path: The base path to start searching from.
+
+    Returns:
+        The path to the UE4SS mods folder or None if not found.
+    """
+    game_root = find_game_root(base_path)
+    if not game_root:
+        return None
+
+    ue4ss_mods_path = game_root / "Binaries" / "Win64" / "UE4SS" / "Mods"
+    if not ue4ss_mods_path.exists():
+        ue4ss_mods_path = game_root / "Binaries" / "Win64" / "ue4ss" / "Mods"
+
+    return ue4ss_mods_path if ue4ss_mods_path.exists() else None
 
 
 def find_assets(base_path: Path | None = None) -> tuple[Path | None, Path | None, Path | None]:
@@ -139,22 +161,34 @@ def main() -> None:
         app.mainloop()
 
     try:
-        mods_folder = find_mods_folder()
-        if not mods_folder:
+        game_root = find_game_root()
+        if not game_root:
             show_startup_error(
-                "Could not find the UE4SS Mods folder.\nPlease place this executable in the UE4SS/Mods folder.",
+                "Could not find the game root folder.\nPlease place this executable in the game's root folder or UE4SS/Mods folder.",
             )
             return
 
         logo_path, dark_logo_path, icon_path = find_assets()
 
         try:
-            mod_manager = UE4SSModManager(mods_folder)
+            ue4ss_mods_path = find_mods_folder(game_root)
+            pak_mods_path = game_root / "Content" / "Paks"
+
+            managers = []
+            if ue4ss_mods_path and ue4ss_mods_path.exists():
+                managers.append(UE4SSModManager(ue4ss_mods_path))
+            if pak_mods_path.exists():
+                managers.append(PakModManager(pak_mods_path))
+
+            if not managers:
+                show_startup_error("No mod folders found.")
+                return
+
         except (InvalidModFolderException, InvalidModException) as e:
             show_startup_error(str(e))
             return
 
-        start_gui(mod_manager, logo_path, icon_path, dark_logo_path)
+        start_gui(managers, logo_path, icon_path, dark_logo_path)
 
     except Exception as e:
         logger.exception("An unexpected error occurred")

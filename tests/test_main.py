@@ -5,14 +5,19 @@ from src.main import find_assets, find_mods_folder
 
 
 def test_find_mods_folder_direct(tmp_path):
-    ue4ss_dir = tmp_path / "UE4SS"
-    ue4ss_dir.mkdir()
+    # Setup game root
+    bin_dir = tmp_path / "Binaries"
+    bin_dir.mkdir()
+    (tmp_path / "Content").mkdir()
+
+    ue4ss_dir = bin_dir / "Win64" / "UE4SS"
+    ue4ss_dir.mkdir(parents=True)
     mods_dir = ue4ss_dir / "Mods"
     mods_dir.mkdir()
 
+    assert find_mods_folder(tmp_path) == mods_dir
     assert find_mods_folder(mods_dir) == mods_dir
     assert find_mods_folder(ue4ss_dir) == mods_dir
-    assert find_mods_folder(tmp_path) == mods_dir
 
 
 def test_find_mods_folder_not_found(tmp_path):
@@ -91,11 +96,15 @@ def test_find_mods_folder_frozen(tmp_path, monkeypatch):
     # Create a dummy executable path
     exe_dir = tmp_path / "bin"
     exe_dir.mkdir()
+    # Mock game root structure
+    (exe_dir / "Binaries").mkdir()
+    (exe_dir / "Content").mkdir()
+
     exe_path = exe_dir / "app.exe"
     monkeypatch.setattr(sys, "executable", str(exe_path))
 
     # Create Mods folder relative to "executable"
-    mods_dir = exe_dir / "UE4SS" / "Mods"
+    mods_dir = exe_dir / "Binaries" / "Win64" / "UE4SS" / "Mods"
     mods_dir.mkdir(parents=True)
 
     assert find_mods_folder() == mods_dir
@@ -189,16 +198,20 @@ def test_main_startup_no_mods_folder(monkeypatch, tmp_path):
 
 
 def test_main_startup_full(monkeypatch, tmp_path):
-    # Mock find_mods_folder and find_assets to return valid paths
-    ue4ss_dir = tmp_path / "UE4SS"
+    # Mock find_game_root and find_assets to return valid paths
+    game_root = tmp_path
+    (game_root / "Binaries").mkdir()
+    (game_root / "Content").mkdir()
+
+    ue4ss_dir = game_root / "Binaries" / "Win64" / "UE4SS"
     mods_dir = ue4ss_dir / "Mods"
     mods_dir.mkdir(parents=True)
     (mods_dir / "Mod1").mkdir()
     (mods_dir / "Mod1" / "scripts").mkdir()
     (mods_dir / "Mod1" / "scripts" / "main.lua").touch()
 
-    monkeypatch.setattr("src.main.find_mods_folder", lambda: mods_dir)
-    monkeypatch.setattr("src.main.find_assets", lambda: (None, None, None))
+    monkeypatch.setattr("src.main.find_game_root", lambda x=None: game_root)
+    monkeypatch.setattr("src.main.find_assets", lambda x=None: (None, None, None))
 
     # Mock start_gui to avoid GUI
     gui_calls = []
@@ -212,7 +225,8 @@ def test_main_startup_full(monkeypatch, tmp_path):
     main()
 
     assert len(gui_calls) == 1
-    assert isinstance(gui_calls[0], UE4SSModManager)
+    assert isinstance(gui_calls[0], list)
+    assert any(isinstance(m, UE4SSModManager) for m in gui_calls[0])
 
 
 def test_main_invalid_mod_folder_exception(monkeypatch, tmp_path):
