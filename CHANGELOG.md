@@ -1,12 +1,5 @@
 ## v0.2.5
-- Added mod archive import button
-- Added support for .pak mods
-    - Enabling/disabling .pak mods
-    - Importing .pak mod archives
-- Simplified saving of mod enabled/disabled states
-- Removed native mods from the mod list
-- Added mod removal functionality
-- GUI Improvements
+- Changed Windows release format
 
 ## v0.2.4
 - Added mod archive import button
