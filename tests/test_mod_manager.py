@@ -442,7 +442,7 @@ def test_ue4ss_mod_manager_remove_mod(ue4ss_structure) -> None:
     mod_dir.mkdir()
     (mod_dir / "scripts").mkdir()
     (mod_dir / "scripts" / "main.lua").touch()
-    
+
     manager.mods = manager.load_mods()
     assert any(m.name == mod_name for m in manager.mods)
     assert mod_dir.exists()
@@ -457,7 +457,7 @@ def test_pak_mod_manager_remove_mod(tmp_path) -> None:
     pak_dir.mkdir()
     pak_path = pak_dir / "Remove.pak"
     pak_path.touch()
-    
+
     manager = PakModManager(pak_dir)
     assert "Remove.pak" in manager.all_mods
     assert pak_path.exists()
