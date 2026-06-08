@@ -23,6 +23,7 @@ A simple GUI application for managing [UE4SS](https://github.com/UE4SS-RE/RE-UE4
 
 1. Download the latest release from the [Releases page](https://github.com/ConnorC432/ue4ss_modmanager/releases)
 2. Place the executable in your game's `Medieval_Dynasty` folder
+    - Also make sure to copy the `_internal` folder, and it's contents, alongside the executable, if using the Windows build
 3. Run the executable
 
 ## Usage
