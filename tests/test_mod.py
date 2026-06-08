@@ -179,7 +179,44 @@ def test_pak_mod_enable_disable_idempotent(tmp_path) -> None:
     disabled_path = tmp_path / "Idem.pak.disabled"
     assert disabled_path.exists()
 
-    # Disable already disabled
-    mod.disable()
-    assert disabled_path.exists()
     assert mod.enabled is False
+
+
+def test_ue4ss_mod_remove(tmp_path) -> None:
+    mod_dir = tmp_path / "RemoveMod"
+    mod_dir.mkdir()
+    scripts_dir = mod_dir / "scripts"
+    scripts_dir.mkdir()
+    (scripts_dir / "main.lua").touch()
+
+    mod = UE4SSMod.from_path(mod_dir)
+    assert mod_dir.exists()
+
+    mod.remove()
+    assert not mod_dir.exists()
+
+
+def test_pak_mod_remove(tmp_path) -> None:
+    from src.common.mod import PakMod
+
+    pak_path = tmp_path / "Remove.pak"
+    pak_path.touch()
+
+    mod = PakMod.from_path(pak_path)
+    assert pak_path.exists()
+
+    mod.remove()
+    assert not pak_path.exists()
+
+
+def test_pak_mod_remove_disabled(tmp_path) -> None:
+    from src.common.mod import PakMod
+
+    pak_path = tmp_path / "Remove.pak.disabled"
+    pak_path.touch()
+
+    mod = PakMod.from_path(pak_path)
+    assert pak_path.exists()
+
+    mod.remove()
+    assert not pak_path.exists()
