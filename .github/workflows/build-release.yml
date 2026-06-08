@@ -141,9 +141,7 @@ jobs:
             zip -r "${{ matrix.asset_name }}.zip" "${{ matrix.asset_name }}"
 
           else
-            powershell Compress-Archive `
-              -Path "${{ matrix.asset_name }}" `
-              -DestinationPath "${{ matrix.asset_name }}.zip"
+            powershell Compress-Archive -Path "${{ matrix.asset_name }}" -DestinationPath "${{ matrix.asset_name }}.zip"
           fi
 
       - name: Upload artifacts
