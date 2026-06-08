@@ -133,10 +133,10 @@ jobs:
             zip -r "${{ matrix.asset_name }}.zip" "${{ matrix.asset_name }}"
 
           else
-            powershell Compress-Archive "${{ matrix.asset_name }}" "${{ matrix.asset_name }}.zip"
+            powershell Compress-Archive "${{ matrix.asset_name }}.exe" "${{ matrix.asset_name }}.zip"
           fi
 
-      - name: Upload build artifacts
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.asset_name }}
@@ -155,12 +155,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Download all artifacts
+      - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
           path: dist
 
-      - name: Extract changelog entry
+      - name: Extract changelog
         id: changelog
         shell: bash
         env:
