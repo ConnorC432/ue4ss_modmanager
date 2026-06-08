@@ -26,7 +26,6 @@ class UE4SSModManagerGUI(ctk.CTk):
         self.mod_manager = mod_manager
         self.initial_mod_states = {mod.name: mod.enabled for mod in mod_manager.mods}
         self.mod_checkboxes = {}
-        self.show_native_warning_shown = False
 
         self._setup_window(icon_path)
         self._setup_theme()
@@ -144,20 +143,8 @@ class UE4SSModManagerGUI(ctk.CTk):
             self.header_frame,
             placeholder_text="Search mods...",
             textvariable=self.search_var,
-            width=200,
         )
-        self.search_entry.pack(side="left", padx=10, pady=5)
-
-        self.show_native_mods_var = ctk.BooleanVar(value=False)
-        self.show_native_switch = ctk.CTkSwitch(
-            self.header_frame,
-            text="Show Native Mods",
-            variable=self.show_native_mods_var,
-            onvalue=True,
-            offvalue=False,
-            command=self.toggle_native_mods_visibility,
-        )
-        self.show_native_switch.pack(side="right", padx=10, pady=5)
+        self.search_entry.pack(side="left", fill="x", expand=True, padx=10, pady=5)
 
     def _create_controls(self) -> None:
         """Create the control buttons section."""
@@ -269,20 +256,6 @@ class UE4SSModManagerGUI(ctk.CTk):
         )
         self.status_bar.pack(pady=(8, 0), anchor="w")
 
-    def toggle_native_mods_visibility(self) -> None:
-        """Toggle visibility of native mods with a warning."""
-        if self.show_native_mods_var.get() and not self.show_native_warning_shown:
-            self.show_warning(
-                "Warning",
-                "You should be absolutely sure about toggling UE4SS native mods. "
-                "Disabling essential native mods may break UE4SS functionality.",
-                self.populate_mod_list,
-                lambda: self.show_native_mods_var.set(False),
-            )
-            self.show_native_warning_shown = True
-        else:
-            self.populate_mod_list()
-
     def update_save_button_state(self) -> None:
         """Update the save button state based on save options."""
         if (
@@ -315,7 +288,7 @@ class UE4SSModManagerGUI(ctk.CTk):
             self.mod_checkboxes = {}
 
             for mod in self.mod_manager.mods:
-                if not self.show_native_mods_var.get() and mod.is_native:
+                if mod.is_native:
                     continue
 
                 frame = ctk.CTkFrame(self.mod_list_frame)
@@ -323,7 +296,7 @@ class UE4SSModManagerGUI(ctk.CTk):
 
                 checkbox = ctk.CTkCheckBox(
                     frame,
-                    text=f"{'[NATIVE] ' if mod.is_native else ''}{mod.name}",
+                    text=f"{mod.name}",
                     variable=ctk.BooleanVar(value=mod.enabled),
                     command=self.update_save_button_state,
                     onvalue=True,
@@ -343,12 +316,12 @@ class UE4SSModManagerGUI(ctk.CTk):
                 self.mod_checkboxes[mod.name] = checkbox
 
             visible_count = sum(
-                1 for mod in self.mod_manager.mods if not mod.is_native or self.show_native_mods_var.get()
+                1 for mod in self.mod_manager.mods if not mod.is_native
             )
             enabled_count = sum(
                 1
                 for mod in self.mod_manager.mods
-                if mod.enabled and (not mod.is_native or self.show_native_mods_var.get())
+                if mod.enabled and not mod.is_native
             )
             self.status_bar.configure(text=f"Showing {visible_count} mods ({enabled_count} enabled)")
 
