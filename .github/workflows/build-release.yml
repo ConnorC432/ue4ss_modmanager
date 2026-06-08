@@ -112,8 +112,16 @@ jobs:
       - name: Build with PyInstaller
         shell: bash
         run: |
+          EXTRA_FLAGS=""
+          
+          if [ "$RUNNER_OS" == "Windows" ]; then
+            EXTRA_FLAGS="--noupx --onedir --icon assets/img/ue.ico"
+          else
+            EXTRA_FLAGS="--onefile"
+          fi
+          
           pyinstaller \
-            --onefile \
+            $EXTRA_FLAGS \
             --windowed \
             --name "${{ matrix.asset_name }}" \
             --add-data "assets${{ matrix.add_data_sep }}assets" \
