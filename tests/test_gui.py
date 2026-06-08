@@ -12,6 +12,7 @@ class MockCTk:
         self.search_var.get.return_value = ""
         self.toggle_all_var = MagicMock()
         self.toggle_all_var.get.return_value = False
+        self.after_callbacks = []
 
     def title(self, *args) -> None:
         pass
@@ -28,8 +29,9 @@ class MockCTk:
     def attributes(self, *args) -> None:
         pass
 
-    def after(self, *args) -> None:
-        pass
+    def after(self, ms, callback, *args) -> None:
+        if callback:
+            self.after_callbacks.append(callback)
 
     def center_window(self) -> None:
         pass
@@ -141,6 +143,21 @@ def test_gui_save_changes_pak(tmp_path, monkeypatch) -> None:
 
     # Save changes
     gui.save_changes()
+
+    # Wait for the thread to finish
+    import time
+
+    timeout = 5
+    start_time = time.time()
+    while gui._is_saving and time.time() - start_time < timeout:
+        if hasattr(gui, "tk"):
+            gui.update()
+        # Manually trigger the 'after' callbacks if they are stored in MockCTk
+        elif hasattr(gui, "after_callbacks"):
+            for cb in gui.after_callbacks:
+                cb()
+            gui.after_callbacks = []
+        time.sleep(0.01)
 
     # Check if the file was renamed
     assert (pak_dir / "Test.pak.disabled").exists()
