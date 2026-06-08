@@ -1,5 +1,10 @@
 ## v0.2.4
 - Added mod archive import button
+- Added support for .pak mods
+    - Enabling/disabling .pak mods
+    - Importing .pak mod archives
+- Simplified saving of mod enabled/disabled states
+- Removed native mods from the mod list
 
 ## v0.2.3
 - Fixed logo not displaying on Linux builds
