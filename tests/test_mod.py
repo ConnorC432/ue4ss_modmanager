@@ -115,3 +115,68 @@ def test_mod_equality():
     assert mod1 != mod3, "Mods with different names should not be equal"
     assert mod1 != "not a mod", "Equality with non-mod object should be False"
     assert hash(mod1) == hash(mod2), "Equal mods should have same hash"
+
+
+def test_pak_mod_from_path(tmp_path):
+    from src.common.mod import PakMod
+    pak_path = tmp_path / "TestMod.pak"
+    pak_path.touch()
+
+    mod = PakMod.from_path(pak_path)
+    assert mod.name == "TestMod.pak"
+    assert mod.enabled is True
+    assert mod.path == pak_path
+
+    disabled_path = tmp_path / "DisabledMod.pak.disabled"
+    disabled_path.touch()
+    mod_disabled = PakMod.from_path(disabled_path)
+    assert mod_disabled.name == "DisabledMod.pak"
+    assert mod_disabled.enabled is False
+    assert mod_disabled.path == disabled_path
+
+
+def test_pak_mod_enable_disable(tmp_path):
+    from src.common.mod import PakMod
+    pak_path = tmp_path / "Toggle.pak"
+    pak_path.touch()
+
+    mod = PakMod.from_path(pak_path)
+    assert pak_path.exists()
+
+    # Disable
+    mod.disable()
+    disabled_path = tmp_path / "Toggle.pak.disabled"
+    assert not pak_path.exists()
+    assert disabled_path.exists()
+    assert mod.enabled is False
+    assert mod.path == disabled_path
+
+    # Enable
+    mod.enable()
+    assert pak_path.exists()
+    assert not disabled_path.exists()
+    assert mod.enabled is True
+    assert mod.path == pak_path
+
+
+def test_pak_mod_enable_disable_idempotent(tmp_path):
+    from src.common.mod import PakMod
+    pak_path = tmp_path / "Idem.pak"
+    pak_path.touch()
+
+    mod = PakMod.from_path(pak_path)
+
+    # Enable already enabled
+    mod.enable()
+    assert pak_path.exists()
+    assert mod.enabled is True
+
+    # Disable
+    mod.disable()
+    disabled_path = tmp_path / "Idem.pak.disabled"
+    assert disabled_path.exists()
+
+    # Disable already disabled
+    mod.disable()
+    assert disabled_path.exists()
+    assert mod.enabled is False

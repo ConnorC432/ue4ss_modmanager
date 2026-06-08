@@ -1,15 +1,70 @@
 import os
 import shutil
+from abc import ABC, abstractmethod
 from json import dumps, load
 from pathlib import Path
 
 from loguru import logger
 
 from src.common.exceptions import InvalidModFolderException
-from src.common.mod import UE4SSMod
+from src.common.mod import Mod, PakMod, UE4SSMod
 
 
-class UE4SSModManager:
+class ModManager(ABC):
+    """Base class for mod managers."""
+
+    def __init__(self, path: Path) -> None:
+        self.path = path
+        self.mods = self.load_mods()
+
+    @abstractmethod
+    def load_mods(self) -> list[Mod]:
+        """Loads all mods from the specified path."""
+        pass
+
+    def enable_mods(self, mod_names: list[str]) -> None:
+        """Enables the specified mods."""
+        for mod in self.mods:
+            if mod.name in mod_names:
+                mod.enable()
+
+    def disable_mods(self, mod_names: list[str]) -> None:
+        """Disables the specified mods."""
+        for mod in self.mods:
+            if mod.name in mod_names:
+                mod.disable()
+
+    @abstractmethod
+    def import_mod_archive(self, archive_path: Path, overwrite: bool = False) -> str:
+        """
+        Imports a mod from an archive file.
+
+        Args:
+            archive_path: The path to the mod archive.
+            overwrite: Whether to overwrite an existing mod.
+
+        Returns:
+            The name of the imported mod.
+        """
+        pass
+
+    @property
+    def enabled_mods(self) -> list[str]:
+        """Returns a list of enabled mod names."""
+        return [mod.name for mod in self.mods if mod.enabled]
+
+    @property
+    def disabled_mods(self) -> list[str]:
+        """Returns a list of disabled mod names."""
+        return [mod.name for mod in self.mods if not mod.enabled]
+
+    @property
+    def all_mods(self) -> list[str]:
+        """Returns a list of all mod names."""
+        return [mod.name for mod in self.mods]
+
+
+class UE4SSModManager(ModManager):
     """Manages the loading and enabling/disabling of UE4SS mods."""
 
     NATIVE_MODS = (
@@ -30,16 +85,12 @@ class UE4SSModManager:
             path: The path to the mod folder.
 
         Raises:
-            InvalidModFolderException: If the path is not a directory or does not have the correct folder structure.
+            InvalidModFolderException: If the path is not a directory.
         """
-        self.path = path
-
-        enabled_overrides = self._get_enabled_overrides()
-
-        if not path.is_dir() or not path.exists() or not self._has_right_folder_structure(path):
+        if not path.is_dir() or not path.exists():
             raise InvalidModFolderException(f"Path {path} is not a directory.")
 
-        self.mods = self.load_mods(enabled_overrides)
+        super().__init__(path)
 
     def _get_enabled_overrides(self) -> list[str]:
         output = []
@@ -62,19 +113,6 @@ class UE4SSModManager:
 
         return output
 
-    @staticmethod
-    def _has_right_folder_structure(path: Path) -> bool:
-        """
-        Checks if the given path has the correct folder structure for the root mod folder.
-
-        Args:
-            path: The path to check.
-
-        Returns:
-            Whether the path has the correct folder structure.
-        """
-        return path.stem.upper() == "MODS" and path.parent.stem.upper() == "UE4SS"
-
     def load_mods(self, enabled_overrides: list[str] | None = None) -> list[UE4SSMod]:
         """
         Loads all mods from the specified path.
@@ -82,11 +120,10 @@ class UE4SSModManager:
         Returns:
             A list of UE4SSMod objects representing the mods in the directory.
         """
-        output = []
-
         if enabled_overrides is None:
-            enabled_overrides = []
+            enabled_overrides = self._get_enabled_overrides()
 
+        output = []
         for mod_path in self.path.iterdir():
             if mod_path.is_dir() and mod_path.stem.upper() != "SHARED":
                 try:
@@ -101,103 +138,25 @@ class UE4SSModManager:
 
         return output
 
-    def enable_mods(self, mod_names: list[str]) -> None:
-        """Enables the specified mods by creating enabled.txt files."""
-        for mod in self.mods:
-            if mod.name in mod_names:
-                mod.enable()
-
-    def disable_mods(self, mod_names: list[str]) -> None:
-        """Disables the specified mods by deleting enabled.txt files."""
-        for mod in self.mods:
-            if mod.name in mod_names:
-                mod.disable()
-
-    def _write_to_mods_json(self, mods: list[UE4SSMod]) -> None:
-        """
-        Writes the enabled mods to the mods.json file.
-
-        Args:
-            mods: A list of UE4SSMod objects to write to the mods.json file.
-        """
-        output = [{"mod_name": mod.name, "mod_enabled": mod.enabled} for mod in mods if mod.enabled]
-        json_path = self.path / "mods.json"
-
-        if json_path.exists():
-            json_path.unlink()
-
-        with Path.open(json_path, "w", encoding="utf-8") as f:
-            f.write(dumps(output, indent=4, ensure_ascii=False))
-            logger.debug(f"Enabled mods written to {json_path}")
-
-    def _write_to_mods_txt(self, mods: list[UE4SSMod]) -> None:
-        """
-        Writes the enabled mods to the mods.txt file.
-
-        Args:
-            mods: A list of UE4SSMod objects to write to the mods.txt file.
-        """
-        output = [f"{mod.name} : 1\n" for mod in mods if mod.enabled]
-        txt_path = self.path / "mods.txt"
-
-        if txt_path.exists():
-            txt_path.unlink()
-
-        with Path.open(txt_path, "w", encoding="utf-8") as f:
-            f.writelines(output)
-            logger.debug(f"Enabled mods written to {txt_path}")
-
-    def parse_mods(
-        self,
-        mods: list[UE4SSMod],
-        *,
-        save_enabled_txt: bool = True,
-        save_mods_json: bool = True,
-        save_mods_txt: bool = True,
-    ) -> None:
+    def parse_mods(self, mods: list[UE4SSMod]) -> None:
         """
         Parses the mods and sets their enabled status.
 
         Args:
             mods: A list of UE4SSMod objects to parse.
-            save_enabled_txt: Whether to save the enabled status to the enabled.txt files
-            save_mods_json: Whether to save the enabled status to the mods.json file
-            save_mods_txt: Whether to save the enabled status to the mods.txt file
         """
         enabled_mods = [mod for mod in mods if mod.enabled]
         disabled_mods = [mod for mod in mods if not mod.enabled]
 
-        if save_mods_json:
-            self._write_to_mods_json(enabled_mods)
+        if enabled_mods:
+            for mod in enabled_mods:
+                mod.enable()
 
-        if save_mods_txt:
-            self._write_to_mods_txt(enabled_mods)
-
-        if save_enabled_txt:
-            if enabled_mods:
-                for mod in enabled_mods:
-                    mod.enable()
-
-            if disabled_mods:
-                for mod in disabled_mods:
-                    mod.disable()
+        if disabled_mods:
+            for mod in disabled_mods:
+                mod.disable()
 
         logger.debug(f"Parsed {len(mods)} mods.")
-
-    @property
-    def enabled_mods(self) -> list[UE4SSMod]:
-        """Returns a list of enabled mods."""
-        return [mod.name for mod in self.mods if mod.enabled]
-
-    @property
-    def disabled_mods(self) -> list[UE4SSMod]:
-        """Returns a list of disabled mods."""
-        return [mod.name for mod in self.mods if not mod.enabled]
-
-    @property
-    def all_mods(self) -> list[UE4SSMod]:
-        """Returns a list of all mods."""
-        return [mod.name for mod in self.mods]
 
     def import_mod_archive(self, archive_path: Path, overwrite: bool = False) -> str:
         """
@@ -272,5 +231,60 @@ class UE4SSModManager:
                         shutil.copy2(item, target_dir / item.name)
 
         # Re-load mods after extraction
-        self.mods = self.load_mods(self._get_enabled_overrides())
+        self.mods = self.load_mods()
+        return mod_name
+
+
+class PakModManager(ModManager):
+    """Manages the loading and enabling/disabling of PAK mods."""
+
+    def load_mods(self) -> list[PakMod]:
+        """Loads all PAK mods from the specified path."""
+        output = []
+        if not self.path.exists():
+            return output
+
+        for item in self.path.iterdir():
+            if item.is_file() and (item.name.lower().endswith(".pak") or item.name.lower().endswith(".pak.disabled")):
+                output.append(PakMod.from_path(item))
+
+        return output
+
+    def import_mod_archive(self, archive_path: Path, overwrite: bool = False) -> str:
+        """Imports a PAK mod from an archive file."""
+        import tempfile
+
+        mod_name = archive_path.stem
+        # Handle cases like .tar.gz where stem would be .tar
+        if archive_path.name.lower().endswith(".tar.gz"):
+            mod_name = archive_path.name[:-7]
+        elif archive_path.name.lower().endswith(".tar.bz2"):
+            mod_name = archive_path.name[:-8]
+        elif archive_path.name.lower().endswith(".tar.xz"):
+            mod_name = archive_path.name[:-7]
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            shutil.unpack_archive(str(archive_path), extract_dir=temp_dir)
+
+            pak_files = []
+            for root, _, files in os.walk(temp_dir):
+                for file in files:
+                    if file.lower().endswith(".pak"):
+                        pak_files.append(Path(root) / file)
+
+            if not pak_files:
+                raise ValueError("No .pak files found in the archive.")
+
+            for pak_file in pak_files:
+                target_path = self.path / pak_file.name
+                if target_path.exists() and not overwrite:
+                    raise ValueError(f"Mod file '{pak_file.name}' already exists.")
+
+            for pak_file in pak_files:
+                target_path = self.path / pak_file.name
+                if target_path.exists() and overwrite:
+                    target_path.unlink()
+                shutil.copy2(pak_file, target_path)
+
+        self.mods = self.load_mods()
         return mod_name

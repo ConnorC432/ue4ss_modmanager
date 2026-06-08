@@ -1,3 +1,4 @@
+import os
 import sys
 from pathlib import Path
 from tkinter import filedialog
@@ -6,16 +7,16 @@ import customtkinter as ctk
 from loguru import logger
 from PIL import Image, ImageTk
 
-from src.common.mod import UE4SSMod
-from src.common.mod_manager import UE4SSModManager
+from src.common.mod import Mod, UE4SSMod
+from src.common.mod_manager import ModManager, UE4SSModManager, PakModManager
 
 
 class UE4SSModManagerGUI(ctk.CTk):
-    """A GUI for managing UE4SS mods."""
+    """A GUI for managing UE4SS and PAK mods."""
 
     def __init__(
         self,
-        mod_manager: UE4SSModManager,
+        mod_managers: list[ModManager],
         logo_path: Path | None = None,
         icon_path: Path | None = None,
         dark_logo_path: Path | None = None,
@@ -23,9 +24,13 @@ class UE4SSModManagerGUI(ctk.CTk):
         """Initialize the UE4SSModManagerGUI."""
         super().__init__()
 
-        self.mod_manager = mod_manager
-        self.initial_mod_states = {mod.name: mod.enabled for mod in mod_manager.mods}
-        self.mod_checkboxes = {}
+        self.mod_managers = mod_managers
+        self.initial_mod_states = {}
+        for manager in mod_managers:
+            for mod in manager.mods:
+                self.initial_mod_states[(id(manager), mod.name)] = mod.enabled
+
+        self.mod_checkboxes = {}  # (manager_id, mod_name) -> checkbox
 
         self._setup_window(icon_path)
         self._setup_theme()
@@ -37,7 +42,7 @@ class UE4SSModManagerGUI(ctk.CTk):
         self._create_search_filter()
         self._create_controls()
         self._create_mod_list()
-        self._create_save_options()
+        self._create_save_section()
         self._create_status_bar()
 
         self.populate_mod_list()
@@ -191,77 +196,33 @@ class UE4SSModManagerGUI(ctk.CTk):
         """Create the scrollable mod list area."""
         self.mod_list_frame = ctk.CTkScrollableFrame(self.main_frame)
         self.mod_list_frame.pack(fill="both", expand=True, padx=10, pady=8)
-        self.separator2 = ctk.CTkFrame(self.main_frame, height=1, fg_color="gray30")
-        self.separator2.pack(fill="x", padx=10, pady=3)
 
-    def _create_save_options(self) -> None:
-        """Create the save options section."""
-        self.save_options_frame = ctk.CTkFrame(self.main_frame)
-        self.save_options_frame.pack(fill="x", padx=10, pady=(8, 0))
-
-        self.save_enabled_txt_var = ctk.BooleanVar(value=True)
-        self.save_enabled_txt = ctk.CTkSwitch(
-            self.save_options_frame,
-            text="Save enabled.txt",
-            variable=self.save_enabled_txt_var,
-            onvalue=True,
-            offvalue=False,
-            command=self.update_save_button_state,
-            width=24,
-        )
-        self.save_enabled_txt.pack(side="left", padx=10, pady=8)
-
-        self.save_mods_json_var = ctk.BooleanVar(value=False)
-        self.save_mods_json = ctk.CTkSwitch(
-            self.save_options_frame,
-            text="Save mods.json",
-            variable=self.save_mods_json_var,
-            onvalue=True,
-            offvalue=False,
-            command=lambda: self.handle_save_option_change(self.save_mods_json_var),
-            width=24,
-        )
-        self.save_mods_json.pack(side="left", padx=10, pady=8)
-
-        self.save_mods_txt_var = ctk.BooleanVar(value=False)
-        self.save_mods_txt = ctk.CTkSwitch(
-            self.save_options_frame,
-            text="Save mods.txt",
-            variable=self.save_mods_txt_var,
-            onvalue=True,
-            offvalue=False,
-            command=lambda: self.handle_save_option_change(self.save_mods_txt_var),
-            width=24,
-        )
-        self.save_mods_txt.pack(side="left", padx=10, pady=8)
-
-        self.spacer = ctk.CTkLabel(self.save_options_frame, text="")
-        self.spacer.pack(side="left", fill="x", expand=True)
-
+    def _create_save_section(self) -> None:
+        """Create the save section."""
         self.save_button = ctk.CTkButton(
-            self.save_options_frame,
+            self.main_frame,
             text="Save Changes",
             command=self.save_changes,
-            width=120,
+            width=200,
+            height=40,
             state="disabled",
+            font=ctk.CTkFont(size=14, weight="bold"),
         )
-        self.save_button.pack(side="right", padx=10, pady=8)
+        self.save_button.pack(pady=(10, 5), anchor="center")
 
     def _create_status_bar(self) -> None:
         """Create the status bar at the bottom."""
+        total_mods = sum(len(m.mods) for m in self.mod_managers)
         self.status_bar = ctk.CTkLabel(
             self.main_frame,
-            text=f"Loaded {len(self.mod_manager.mods)} mods",
+            text=f"Loaded {total_mods} mods",
             font=ctk.CTkFont(size=12),
         )
         self.status_bar.pack(pady=(8, 0), anchor="w")
 
     def update_save_button_state(self) -> None:
-        """Update the save button state based on save options."""
-        if (
-            not (self.save_enabled_txt_var.get() or self.save_mods_json_var.get() or self.save_mods_txt_var.get())
-            or self.initial_mod_states == self.get_mod_status()
-        ):
+        """Update the save button state."""
+        if self.initial_mod_states == self.get_mod_status():
             self.save_button.configure(state="disabled")
         else:
             self.save_button.configure(state="normal")
@@ -269,11 +230,16 @@ class UE4SSModManagerGUI(ctk.CTk):
     def refresh_mods(self) -> None:
         """Reload mods from disk."""
         try:
-            self.mod_manager.mods = self.mod_manager.load_mods()
-            self.initial_mod_states = {mod.name: mod.enabled for mod in self.mod_manager.mods}
+            self.initial_mod_states = {}
+            for manager in self.mod_managers:
+                manager.mods = manager.load_mods()
+                for mod in manager.mods:
+                    self.initial_mod_states[(id(manager), mod.name)] = mod.enabled
+
             self.populate_mod_list()
 
-            self.status_bar.configure(text=f"Refreshed {len(self.mod_manager.mods)} mods")
+            total_mods = sum(len(m.mods) for m in self.mod_managers)
+            self.status_bar.configure(text=f"Refreshed {total_mods} mods")
 
         except Exception as e:
             logger.exception(f"Error refreshing mods: {e}")
@@ -287,12 +253,35 @@ class UE4SSModManagerGUI(ctk.CTk):
 
             self.mod_checkboxes = {}
 
-            for mod in self.mod_manager.mods:
-                if mod.is_native:
+            # Flatten mods from all managers
+            all_mods_with_managers = []
+            for manager in self.mod_managers:
+                for mod in manager.mods:
+                    all_mods_with_managers.append((manager, mod))
+
+            # Sort mods by name
+            all_mods_with_managers.sort(key=lambda x: x[1].name.lower())
+
+            for manager, mod in all_mods_with_managers:
+                is_ue4ss = isinstance(mod, UE4SSMod)
+
+                # Filter based on search text
+                search_text = self.search_var.get().lower()
+                if search_text and search_text not in mod.name.lower():
                     continue
 
                 frame = ctk.CTkFrame(self.mod_list_frame)
                 frame.pack(fill="x", padx=5, pady=2)
+
+                # Mod type tag
+                type_tag = ctk.CTkLabel(
+                    frame,
+                    text=f"[{mod.mod_type}]",
+                    font=ctk.CTkFont(size=10, weight="bold"),
+                    text_color="gray",
+                    width=50,
+                )
+                type_tag.pack(side="left", padx=(5, 0))
 
                 checkbox = ctk.CTkCheckBox(
                     frame,
@@ -305,54 +294,37 @@ class UE4SSModManagerGUI(ctk.CTk):
                 )
                 checkbox.pack(side="left", padx=10, pady=5)
 
-                script_count = ctk.CTkLabel(
-                    frame,
-                    text=f"{len(mod.scripts)} script(s)",
-                    font=ctk.CTkFont(size=12),
-                    text_color="gray",
-                )
-                script_count.pack(side="right", padx=10, pady=5)
+                if is_ue4ss:
+                    script_count = ctk.CTkLabel(
+                        frame,
+                        text=f"{len(mod.scripts)} script(s)",
+                        font=ctk.CTkFont(size=12),
+                        text_color="gray",
+                    )
+                    script_count.pack(side="right", padx=10, pady=5)
 
-                self.mod_checkboxes[mod.name] = checkbox
+                self.mod_checkboxes[(id(manager), mod.name)] = checkbox
 
-            visible_count = sum(
-                1 for mod in self.mod_manager.mods if not mod.is_native
-            )
-            enabled_count = sum(
-                1
-                for mod in self.mod_manager.mods
-                if mod.enabled and not mod.is_native
-            )
+            visible_count = len(self.mod_checkboxes)
+            enabled_count = sum(1 for cb in self.mod_checkboxes.values() if cb.get())
             self.status_bar.configure(text=f"Showing {visible_count} mods ({enabled_count} enabled)")
 
         except Exception as e:
-            logger.exception(f"Error saving changes: {e}")
-            self.show_error("Error Saving Changes", str(e))
-
-    def handle_save_option_change(self, var: ctk.BooleanVar) -> None:
-        """Handle changes to save options with warnings."""
-        if var.get():
-            self.show_warning(
-                "Warning",
-                "Are you absolutely sure about writing to these files? "
-                "This can potentially break your UE4SS installation.",
-                lambda: None,  # Do nothing on OK
-                lambda: var.set(False),  # Reset on Cancel
-            )
-
-        self.update_save_button_state()
+            logger.exception(f"Error populating mod list: {e}")
+            self.show_error("Error populating mod list", str(e))
 
     def reset_mods(self) -> None:
         """Reset mods to their initial states when the app was launched."""
         try:
-            for mod_name, checkbox in self.mod_checkboxes.items():
-                initial_state = self.initial_mod_states.get(mod_name, False)
+            for (manager_id, mod_name), checkbox in self.mod_checkboxes.items():
+                initial_state = self.initial_mod_states.get((manager_id, mod_name), False)
                 if initial_state:
                     checkbox.select()
                 else:
                     checkbox.deselect()
 
             self.status_bar.configure(text="Mods reset to initial state. Click Save to apply.")
+            self.update_save_button_state()
 
         except Exception as e:
             logger.exception(f"Error resetting mods: {e}")
@@ -399,68 +371,47 @@ class UE4SSModManagerGUI(ctk.CTk):
         )
         ok_button.pack(side="right", padx=10, pady=10)
 
-    def get_mod_status(self) -> dict[str, bool]:
+    def get_mod_status(self) -> dict[tuple[int, str], bool]:
         """
         Get the current status of all mods from the checkboxes.
 
         Returns:
-            A mapping with mod names as keys and their enabled status as values.
+            A mapping with (manager_id, mod_name) as keys and their enabled status as values.
         """
         try:
             mod_status = {}
-            for mod in self.mod_manager.mods:
-                checkbox = self.mod_checkboxes.get(mod.name)
-                if checkbox:
-                    mod_status[mod.name] = checkbox.get()
+            for (manager_id, mod_name), checkbox in self.mod_checkboxes.items():
+                mod_status[(manager_id, mod_name)] = checkbox.get()
 
+            return mod_status
         except Exception as e:
             logger.exception(f"Error getting mod status: {e}")
             self.show_error("Error Getting Mod Status", str(e))
             return {}
 
-        else:
-            return mod_status
-
-    def get_mod_objects(self) -> list[UE4SSMod]:
-        """
-        Get the current status of all mods from the checkboxes.
-
-        Returns:
-            A list of UE4SSMod objects with updated enabled status
-        """
-        try:
-            updated_mods = []
-
-            for mod in self.mod_manager.mods:
-                checkbox = self.mod_checkboxes.get(mod.name)
-
-                if checkbox:
-                    logger.debug(f"Mod: {mod.name}, Enabled: {checkbox.get()}")
-                    updated_mod = UE4SSMod(name=mod.name, path=mod.path, enabled=checkbox.get(), scripts=mod.scripts)
-                    updated_mods.append(updated_mod)
-
-        except Exception as e:
-            logger.exception(f"Error saving changes: {e}")
-            self.show_error("Error Saving Changes", str(e))
-            return []
-
-        else:
-            return updated_mods
 
     def save_changes(self) -> None:
         """Save the changes to the mods."""
         try:
-            updated_mods = self.get_mod_objects()
-            self.mod_manager.parse_mods(
-                mods=updated_mods,
-                save_enabled_txt=self.save_enabled_txt_var.get(),
-                save_mods_json=self.save_mods_json_var.get(),
-                save_mods_txt=self.save_mods_txt_var.get(),
-            )
+            for manager in self.mod_managers:
+                updated_mods = []
+                for mod in manager.mods:
+                    checkbox = self.mod_checkboxes.get((id(manager), mod.name))
+                    if checkbox:
+                        mod.enabled = checkbox.get()
+                        updated_mods.append(mod)
 
-            enabled_count = sum(1 for mod in updated_mods if mod.enabled)
-            self.status_bar.configure(text=f"Changes saved. {enabled_count}/{len(updated_mods)} mods enabled.")
+                if isinstance(manager, UE4SSModManager):
+                    manager.parse_mods(mods=updated_mods)
+                else:
+                    for mod in updated_mods:
+                        if mod.enabled:
+                            mod.enable()
+                        else:
+                            mod.disable()
 
+            self.status_bar.configure(text="Changes saved.")
+            self.populate_mod_list()
             self.initial_mod_states = self.get_mod_status()
             self.update_save_button_state()
 
@@ -487,18 +438,12 @@ class UE4SSModManagerGUI(ctk.CTk):
 
     def filter_mods(self) -> None:
         """Filter mods based on search text."""
-        search_text = self.search_var.get().lower()
-
-        for mod_name, checkbox in self.mod_checkboxes.items():
-            parent_frame = checkbox.master
-            if search_text in mod_name.lower():
-                parent_frame.pack(fill="x", padx=5, pady=2)
-            else:
-                parent_frame.pack_forget()
+        self.populate_mod_list()
 
     def import_mod(self) -> None:
         """Open a file dialog to import a mod archive."""
         import shutil
+        import tempfile
 
         supported_extensions = []
         for _, extensions, _ in shutil.get_unpack_formats():
@@ -517,19 +462,63 @@ class UE4SSModManagerGUI(ctk.CTk):
 
         try:
             archive_path = Path(file_path)
+
+            # Detect mod type by looking into the archive
+            manager = None
+            with tempfile.TemporaryDirectory() as temp_dir:
+                shutil.unpack_archive(str(archive_path), extract_dir=temp_dir)
+
+                is_ue4ss = False
+                is_pak = False
+
+                for root, dirs, files in os.walk(temp_dir):
+                    if "scripts" in [d.lower() for d in dirs] or "dlls" in [d.lower() for d in dirs]:
+                        is_ue4ss = True
+                        break
+                    if any(f.lower().endswith(".pak") for f in files):
+                        is_pak = True
+
+                if is_ue4ss:
+                    manager = next((m for m in self.mod_managers if isinstance(m, UE4SSModManager)), None)
+                elif is_pak:
+                    manager = next((m for m in self.mod_managers if isinstance(m, PakModManager)), None)
+
+                if not manager:
+                    # Fallback or error
+                    if is_ue4ss:
+                        raise ValueError("UE4SS mod detected, but no UE4SS mod manager is active.")
+                    elif is_pak:
+                        raise ValueError("PAK mod detected, but no PAK mod manager is active.")
+                    else:
+                        raise ValueError("Could not determine mod type from archive (no scripts, dlls, or .pak files found).")
+
             mod_name = archive_path.stem
-            target_dir = self.mod_manager.path / mod_name
+            # Handle cases like .tar.gz where stem would be .tar
+            if archive_path.name.lower().endswith(".tar.gz"):
+                mod_name = archive_path.name[:-7]
+            elif archive_path.name.lower().endswith(".tar.bz2"):
+                mod_name = archive_path.name[:-8]
+            elif archive_path.name.lower().endswith(".tar.xz"):
+                mod_name = archive_path.name[:-7]
 
             def do_import(overwrite: bool = False) -> None:
                 try:
-                    imported_mod_name = self.mod_manager.import_mod_archive(archive_path, overwrite=overwrite)
+                    imported_mod_name = manager.import_mod_archive(archive_path, overwrite=overwrite)
                     self.refresh_mods()
                     self.status_bar.configure(text=f"Successfully imported mod: {imported_mod_name}")
                 except Exception as e:
                     logger.exception(f"Error importing mod: {e}")
                     self.show_error("Import Error", str(e))
 
-            if target_dir.exists():
+            # Re-check existence for the warning
+            already_exists = False
+            if isinstance(manager, UE4SSModManager):
+                if (manager.path / mod_name).exists():
+                    already_exists = True
+            elif isinstance(manager, PakModManager):
+                pass
+
+            if isinstance(manager, UE4SSModManager) and already_exists:
                 self.show_warning(
                     "Overwrite Mod",
                     f"Mod '{mod_name}' already exists. Do you want to overwrite it?",
@@ -579,19 +568,19 @@ class UE4SSModManagerGUI(ctk.CTk):
 
 
 def start_gui(
-    mod_manager: UE4SSModManager,
+    mod_managers: list[ModManager],
     logo_path: Path | None = None,
     icon_path: Path | None = None,
     dark_logo_path: Path | None = None,
 ) -> None:
     """
-    Start the GUI with the given mod manager.
+    Start the GUI with the given mod managers.
 
     Args:
-        mod_manager: An instance of UE4SSModManager
+        mod_managers: A list of ModManager instances
         logo_path: Path to the logo image file
         icon_path: Path to the icon file (.ico)
         dark_logo_path: Path to the dark mode logo image file
     """
-    app = UE4SSModManagerGUI(mod_manager, logo_path, icon_path, dark_logo_path)
+    app = UE4SSModManagerGUI(mod_managers, logo_path, icon_path, dark_logo_path)
     app.mainloop()

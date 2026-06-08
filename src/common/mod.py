@@ -1,3 +1,4 @@
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
@@ -7,16 +8,45 @@ from loguru import logger
 from src.common.exceptions import InvalidModException
 
 
-@dataclass
-class UE4SSMod:
-    """Represents a UE4SS mod."""
+@dataclass(eq=False)
+class Mod(ABC):
+    """Base class for all mods."""
 
     name: str
     path: Path
     enabled: bool
-    scripts: list[str]
+
+    @abstractmethod
+    def enable(self) -> None:
+        """Enables the mod."""
+        pass
+
+    @property
+    @abstractmethod
+    def mod_type(self) -> str:
+        """Returns the type of the mod."""
+        pass
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Mod):
+            return False
+        return self.name == other.name and self.__class__ == other.__class__
+
+    def __hash__(self) -> int:
+        return hash((self.name, self.__class__))
+
+
+@dataclass(eq=False)
+class UE4SSMod(Mod):
+    """Represents a UE4SS mod."""
+
+    scripts: list[str] = None
     is_native: bool = False
     lang: Literal["lua", "cpp"] = "lua"
+
+    @property
+    def mod_type(self) -> str:
+        return "UE4SS"
 
     @classmethod
     def from_path(cls, path: Path, *, override_enabled: bool = False) -> "UE4SSMod":
@@ -84,26 +114,54 @@ class UE4SSMod:
 
         logger.debug(f"Enabled file {enabled_file} created. Mod {self.name} enabled.")
 
-    def __eq__(self, other: object) -> bool:
+
+@dataclass(eq=False)
+class PakMod(Mod):
+    """Represents a PAK mod."""
+
+    @property
+    def mod_type(self) -> str:
+        return "PAK"
+
+    @classmethod
+    def from_path(cls, path: Path) -> "PakMod":
         """
-        Checks if two UE4SSMod objects are equal based on their name.
+        Constructs a PakMod object from a given path.
 
         Args:
-            other: The other object to compare with.
+            path: The path to the .pak file or .pak.disabled file.
 
         Returns:
-            Whether the two objects are equal.
+            An instance of the PakMod class.
         """
-        if not isinstance(other, UE4SSMod):
-            return False
+        name = path.name
+        enabled = not path.name.lower().endswith(".disabled")
 
-        return self.name == other.name
+        if not enabled:
+            name = path.stem  # This will be "modname.pak" if path is "modname.pak.disabled"
 
-    def __hash__(self) -> int:
-        """
-        Returns the hash of the mod's name.
+        return cls(name=name, enabled=enabled, path=path)
 
-        Returns:
-            The hash of the mod's name.
-        """
-        return hash(self.name)
+    def enable(self) -> None:
+        """Enables the mod by renaming .pak.disabled back to .pak."""
+        if self.path.name.lower().endswith(".disabled"):
+            new_path = self.path.parent / self.name
+            self.path.rename(new_path)
+            self.path = new_path
+            self.enabled = True
+            logger.debug(f"Mod {self.name} enabled by renaming to {new_path}")
+        else:
+            self.enabled = True
+            logger.debug(f"Mod {self.name} is already enabled or has no .disabled suffix.")
+
+    def disable(self) -> None:
+        """Disables the mod by renaming .pak to .pak.disabled."""
+        if not self.path.name.lower().endswith(".disabled"):
+            new_path = self.path.with_name(f"{self.path.name}.disabled")
+            self.path.rename(new_path)
+            self.path = new_path
+            self.enabled = False
+            logger.debug(f"Mod {self.name} disabled by renaming to {new_path}")
+        else:
+            self.enabled = False
+            logger.debug(f"Mod {self.name} is already disabled.")
