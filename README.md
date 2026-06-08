@@ -1,6 +1,6 @@
-# UE4SS Mod Manager - Medieval Dynasty
+# Medieval Dynasty Mod Manager
 
-A simple GUI application for managing [UE4SS](https://github.com/UE4SS-RE/RE-UE4SS) mods in Unreal Engine games.
+A simple GUI application for managing [UE4SS](https://github.com/UE4SS-RE/RE-UE4SS) and .pak mods in Unreal Engine games.
 
 ## Features
 
@@ -11,7 +11,10 @@ A simple GUI application for managing [UE4SS](https://github.com/UE4SS-RE/RE-UE4
 - Simple, intuitive interface
 - Remove mods with a single click
 
-## Pre-Installation
+## Pre-Installation - UE4SS
+
+> [!NOTE]
+> Optional if you intend to manage .pak mods only
 
 1. Download the experimental-latest release of UE4SS from [here](https://github.com/UE4SS-RE/RE-UE4SS/releases)
 2. Extract the contents of the zip file into the `Medieval_Dynasty/Binaries/Win64` folder
