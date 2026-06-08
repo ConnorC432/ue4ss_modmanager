@@ -5,6 +5,8 @@
     - Importing .pak mod archives
 - Simplified saving of mod enabled/disabled states
 - Removed native mods from the mod list
+- Added mod removal functionality
+- GUI Improvements
 
 ## v0.2.3
 - Fixed logo not displaying on Linux builds
