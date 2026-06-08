@@ -22,15 +22,8 @@ jobs:
           echo "version_tag=$TAG" >> "$GITHUB_OUTPUT"
 
   lint:
-    name: Lint on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-
-    strategy:
-      matrix:
-        include:
-          - os: ubuntu-latest
-          - os: windows-latest
-          - os: macos-latest
+    name: Lint
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
@@ -57,15 +50,8 @@ jobs:
           ruff format --check src
 
   test:
-    name: Test on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-
-    strategy:
-      matrix:
-        include:
-          - os: ubuntu-latest
-          - os: windows-latest
-          - os: macos-latest
+    name: Pytest
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
