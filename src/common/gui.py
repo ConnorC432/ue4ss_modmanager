@@ -325,6 +325,19 @@ class UE4SSModManagerGUI(ctk.CTk):
             )
             checkbox.pack(side="left", padx=10, pady=5)
 
+            # Remove button
+            remove_button = ctk.CTkButton(
+                frame,
+                text="Remove",
+                width=60,
+                fg_color="transparent",
+                border_width=1,
+                text_color=("gray10", "gray90"),
+                hover_color=("gray70", "gray30"),
+                command=lambda m=manager, mod_obj=mod: self.remove_mod_gui(m, mod_obj),
+            )
+            remove_button.pack(side="right", padx=5, pady=5)
+
             if is_ue4ss:
                 script_count = ctk.CTkLabel(
                     frame,
@@ -445,6 +458,12 @@ class UE4SSModManagerGUI(ctk.CTk):
     def filter_mods(self) -> None:
         """Filter mods based on search text."""
         self.populate_mod_list()
+
+    def remove_mod_gui(self, manager: ModManager, mod: UE4SSMod) -> None:
+        """Remove a mod from the manager and update the GUI."""
+        manager.remove_mod(mod.name)
+        self.refresh_mods()
+        self.status_bar.configure(text=f"Mod {mod.name} removed")
 
     def _detect_mod_type(self, archive_path: Path) -> ModManager:
         """Detect mod type by looking into the archive and return the appropriate manager.

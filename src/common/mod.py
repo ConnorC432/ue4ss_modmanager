@@ -1,3 +1,4 @@
+import shutil
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
@@ -19,6 +20,10 @@ class Mod(ABC):
     @abstractmethod
     def enable(self) -> None:
         """Enables the mod."""
+
+    @abstractmethod
+    def remove(self) -> None:
+        """Removes the mod files."""
 
     @property
     @abstractmethod
@@ -114,6 +119,14 @@ class UE4SSMod(Mod):
 
         logger.debug(f"Enabled file {enabled_file} created. Mod {self.name} enabled.")
 
+    def remove(self) -> None:
+        """Removes the UE4SS mod by deleting its directory."""
+        if self.path.exists() and self.path.is_dir():
+            shutil.rmtree(self.path)
+            logger.info(f"Mod {self.name} removed by deleting directory {self.path}")
+        else:
+            logger.warning(f"Mod directory {self.path} does not exist or is not a directory.")
+
 
 @dataclass(eq=False)
 class PakMod(Mod):
@@ -165,3 +178,11 @@ class PakMod(Mod):
         else:
             self.enabled = False
             logger.debug(f"Mod {self.name} is already disabled.")
+
+    def remove(self) -> None:
+        """Removes the PAK mod by deleting its .pak (or .pak.disabled) file."""
+        if self.path.exists() and self.path.is_file():
+            self.path.unlink()
+            logger.info(f"Mod {self.name} removed by deleting file {self.path}")
+        else:
+            logger.warning(f"Mod file {self.path} does not exist or is not a file.")
