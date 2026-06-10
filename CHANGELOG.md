@@ -1,3 +1,6 @@
+## v0.2.6
+- The base game's .pak file no longer appears as a mod in the list
+
 ## v0.2.5
 - Changed Windows release format
 

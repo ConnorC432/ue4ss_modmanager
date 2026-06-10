@@ -255,9 +255,12 @@ class PakModManager(ModManager):
             return []
 
         return [
-            PakMod.from_path(item)
+            mod
             for item in self.path.iterdir()
-            if item.is_file() and (item.name.lower().endswith(".pak") or item.name.lower().endswith(".pak.disabled"))
+            if item.is_file()
+            and (item.name.lower().endswith(".pak") or item.name.lower().endswith(".pak.disabled"))
+            and item.name != "Medieval_Dynasty-WindowsNoEditor.pak"
+            if (mod := PakMod.from_path(item)) is not None
         ]
 
     def import_mod_archive(self, archive_path: Path, overwrite: bool = False) -> str:
@@ -289,7 +292,12 @@ class PakModManager(ModManager):
 
             pak_files = []
             for root, _, files in os.walk(temp_dir):
-                pak_files.extend(Path(root) / file for file in files if file.lower().endswith(".pak"))
+                for file in files:
+                    if file.lower().endswith(".pak"):
+                        if file == "Medieval_Dynasty-WindowsNoEditor.pak":
+                            logger.info(f"Skipping {file} as it is a protected game file.")
+                            continue
+                        pak_files.append(Path(root) / file)
 
             if not pak_files:
                 msg = "No .pak files found in the archive."
